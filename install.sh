@@ -135,21 +135,39 @@ else
   fi
 
   if command -v efibootmgr >/dev/null 2>&1 && ! grep -q '^/+Windows' "$LIMINE_CONF"; then
-    mapfile -t win_guids < <(efibootmgr -v 2>/dev/null \
+    # Each match is "<boot entry name>\t<partition GUID>", one per Windows
+    # Boot Manager entry found. A machine can have more than one (a stale
+    # entry from a previous install is common), so this is a list, not a
+    # single value.
+    mapfile -t win_entries < <(efibootmgr -v 2>/dev/null \
       | grep -i 'bootmgfw\.efi' \
-      | grep -oP 'HD\(\d+,GPT,\K[0-9a-fA-F-]+' \
-      | sort -u)
-    if [ "${#win_guids[@]}" -eq 0 ]; then
+      | sed -E 's/^Boot[0-9A-Fa-f]{4}\*? +(.*)'$'\t''HD\([0-9]+,GPT,([0-9a-fA-F-]+),.*/\1'$'\t''\2/' \
+      | awk -F'\t' '!seen[$2]++')
+    if [ "${#win_entries[@]}" -eq 0 ]; then
       say "no Windows Boot Manager found in efibootmgr, skipping dual-boot entry"
     else
-      guid="${win_guids[0]}"
-      if [ "${#win_guids[@]}" -gt 1 ]; then
-        warn "multiple Windows Boot Manager entries found, using the first: $guid"
-        printf '   others: %s\n' "${win_guids[@]:1}"
+      # Prefer an entry with a distinctive name over the generic
+      # "Windows Boot Manager" label, since the generic one is more often
+      # the stale leftover. Falls back to whichever efibootmgr listed first.
+      pick="${win_entries[0]}"
+      for entry in "${win_entries[@]}"; do
+        if [ "${entry%%$'\t'*}" != "Windows Boot Manager" ]; then
+          pick="$entry"
+          break
+        fi
+      done
+      name="${pick%%$'\t'*}"
+      guid="${pick##*$'\t'}"
+      if [ "${#win_entries[@]}" -gt 1 ]; then
+        warn "multiple Windows Boot Manager entries found, using: $name ($guid)"
+        for entry in "${win_entries[@]}"; do
+          [ "$entry" = "$pick" ] && continue
+          printf '   also found: %s (%s)\n' "${entry%%$'\t'*}" "${entry##*$'\t'}"
+        done
       fi
-      if confirm "Add a Limine entry chainloading Windows at partition $guid?"; then
+      if confirm "Add a Limine entry chainloading '$name' at partition $guid?"; then
         {
-          printf '\n/+Windows 11\n'
+          printf '\n/+%s\n' "$name"
           printf '    comment: added by omarchy-shakir\n'
           printf '    protocol: efi\n'
           printf '    path: guid(%s):/EFI/Microsoft/Boot/bootmgfw.efi\n' "$guid"
