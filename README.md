@@ -23,6 +23,7 @@ boot menu that actually shows up and can chainload Windows.
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
+|    chromium-flags.conf      ---->  ~/.config/chromium-flags.conf |
 |    packages-personal.txt      ---->  omarchy pkg add             |
 +-----------------------------------------------------------------+
 ```
@@ -39,8 +40,9 @@ Re-running is safe. Existing files it would overwrite get backed up next to
 themselves as `<file>.bak.<timestamp>` first.
 
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
-monitor layout and my full extra package list (gaming, virtualization,
-NVIDIA drivers, work apps). Skip it everywhere else.
+monitor layout, Chromium flags enabling NVIDIA hardware video decode, and my
+full extra package list (gaming, virtualization, NVIDIA drivers, work apps).
+Skip it everywhere else.
 
 ```sh
 ./install.sh --personal
@@ -70,6 +72,18 @@ SDDM's own `Numlock=on` setting is ignored once autologin is enabled, which
 is Omarchy's default. So this also installs a small systemd service that
 turns numlock on for every virtual console (`setleds -D +num`) before any
 login screen renders, independent of SDDM.
+
+## Why the Chromium flags need VaapiIgnoreDriverChecks
+
+Chromium's own VA-API wrapper skips any driver named "nvidia" by default,
+since NVIDIA's backend isn't on Google's supported list, even though
+`libva-nvidia-driver` (installed alongside the NVIDIA packages above) bridges
+VA-API to NVDEC just fine. `VaapiIgnoreDriverChecks` and `VaapiOnNvidiaGPUs`
+bypass that check so hardware video decode actually gets used instead of
+silently falling back to software. Since `chromium-flags.conf` only applies
+from a cold start, this needs a full Chromium quit and relaunch to take
+effect, and running `omarchy-refresh-chromium` will overwrite it back to the
+Omarchy default (re-run `install.sh -p` to restore it).
 
 ## Why the Limine step asks before writing
 

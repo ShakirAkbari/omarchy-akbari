@@ -17,5 +17,9 @@
 - `-p`/`--personal`: hardcoded monitor layout
   (`config/hypr/monitors.lua.personal`) and a personal package list
   (`packages-personal.txt`) installed via `omarchy pkg add`.
+- `-p`/`--personal`: `config/chromium/chromium-flags.conf` symlinked to
+  `~/.config/chromium-flags.conf`, enabling NVIDIA hardware video decode
+  (`VaapiIgnoreDriverChecks`, `VaapiOnNvidiaGPUs`) which Chromium otherwise
+  refuses to use with the NVIDIA driver.
 - `hardwareVVizard` deliberately excluded, it's a separate, less-finished
   project.

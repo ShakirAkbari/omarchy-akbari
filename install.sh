@@ -9,7 +9,8 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HYPR_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/hypr"
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+HYPR_DIR="$CONFIG_DIR/hypr"
 BIN_DIR="$HOME/.local/bin"
 PROJECTS_DIR="$HOME/Projects"
 PERSONAL=0
@@ -184,6 +185,14 @@ fi
 if [ "$PERSONAL" -eq 1 ]; then
   warn "personal mode: monitor layout is hardcoded for the author's hardware"
   link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"
+
+  # NVIDIA VA-API hardware video decode in Chromium. Chromium's own VA-API
+  # wrapper skips any driver named "nvidia" by default; VaapiIgnoreDriverChecks
+  # and VaapiOnNvidiaGPUs bypass that, letting libva-nvidia-driver (installed
+  # below) actually get used for decode instead of falling back to software.
+  # Only meaningful with an NVIDIA GPU, hence personal-only.
+  link "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"
+  warn "chromium-flags.conf may get overwritten by omarchy-refresh-chromium; re-run install.sh -p if so"
 
   if [ -f "$REPO/packages-personal.txt" ]; then
     say "installing personal packages"
