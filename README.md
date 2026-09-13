@@ -36,8 +36,16 @@ cd ~/Projects/omarchy-shakir
 ./install.sh
 ```
 
-Re-running is safe. Existing files it would overwrite get backed up next to
-themselves as `<file>.bak.<timestamp>` first.
+It asks a yes/no question before each step (keybindings, Spotify keys,
+hypr-goldenspiral, numlock, Limine, and each personal-only piece), so you
+can decline anything you don't want on a given run. Piped in with no
+terminal attached (`curl ... | bash`), every question defaults to no.
+
+Re-running is safe and does not create duplicates: existing files it would
+overwrite get backed up next to themselves as `<file>.bak.<timestamp>`
+(once, the first time, not on every run), already-correct symlinks and
+already-present `hyprland.lua` require lines are left alone, and the Limine
+config is only backed up when it's actually about to change.
 
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
 monitor layout, Chromium flags enabling NVIDIA hardware video decode, and my
@@ -87,7 +95,10 @@ Omarchy default (re-run `install.sh -p` to restore it).
 
 ## Why the Limine step asks before writing
 
-The Windows entry is built from a partition GUID read out of `efibootmgr`.
+Every step asks before it does anything, but the Limine one asks twice: once
+before touching `/boot/limine.conf` at all, and again before adding a
+Windows entry specifically. The Windows entry is built from a partition GUID
+read out of `efibootmgr`.
 If a machine has multiple Windows Boot Manager entries (stale ones from a
 previous install are common), this picks the first and tells you what else
 it found. Confirm before it writes anything; if it picked the wrong one,

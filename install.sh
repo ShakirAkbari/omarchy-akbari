@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # omarchy-shakir installer. Idempotent: safe to re-run after a git pull.
+# Asks before every change it makes, so a re-run only touches what you say
+# yes to. Needs a real terminal to ask; piped in via `curl | bash` with no
+# tty, every question defaults to no and nothing gets installed.
 #
 # Default: config that is safe and useful for anyone (keybindings, look'n'feel,
 # numlock on boot, a Limine boot menu with a real timeout).
 #
-# -p / --personal: also installs machine-specific pieces (monitor layout,
+# -p / --personal: also offers machine-specific pieces (monitor layout,
 # full package list) that only make sense on the author's own machines.
 set -euo pipefail
 
@@ -84,47 +87,71 @@ if ! command -v omarchy >/dev/null 2>&1; then
 fi
 
 # 1. Keybindings and look'n'feel -------------------------------------------- #
-link "$REPO/config/hypr/bindings.lua" "$HYPR_DIR/bindings.lua"
-link "$REPO/config/hypr/looknfeel.lua" "$HYPR_DIR/looknfeel.lua"
+if confirm "Install keybindings and look'n'feel (config/hypr/bindings.lua, looknfeel.lua) into $HYPR_DIR?"; then
+  link "$REPO/config/hypr/bindings.lua" "$HYPR_DIR/bindings.lua"
+  link "$REPO/config/hypr/looknfeel.lua" "$HYPR_DIR/looknfeel.lua"
+else
+  say "skipped keybindings and look'n'feel"
+fi
 
 # 2. Spotify media-key scripts ----------------------------------------------- #
-mkdir -p "$BIN_DIR"
-for script in spotify-play-key spotify-stop-key; do
-  link "$REPO/bin/$script" "$BIN_DIR/$script"
-  chmod +x "$REPO/bin/$script"
-done
+if confirm "Install Spotify media-key scripts into $BIN_DIR?"; then
+  mkdir -p "$BIN_DIR"
+  for script in spotify-play-key spotify-stop-key; do
+    link "$REPO/bin/$script" "$BIN_DIR/$script"
+    chmod +x "$REPO/bin/$script"
+  done
+else
+  say "skipped Spotify media-key scripts"
+fi
 
 # 3. Golden-spiral layout + chronobar taskbar --------------------------------- #
-GOLDENSPIRAL_DIR="$PROJECTS_DIR/hypr-goldenspiral"
-mkdir -p "$PROJECTS_DIR"
-if [ -d "$GOLDENSPIRAL_DIR/.git" ]; then
-  say "updating hypr-goldenspiral"
-  git -C "$GOLDENSPIRAL_DIR" pull --ff-only
+if confirm "Clone/update hypr-goldenspiral into $PROJECTS_DIR and wire it into hyprland.lua?"; then
+  GOLDENSPIRAL_DIR="$PROJECTS_DIR/hypr-goldenspiral"
+  mkdir -p "$PROJECTS_DIR"
+  if [ -d "$GOLDENSPIRAL_DIR/.git" ]; then
+    say "updating hypr-goldenspiral"
+    git -C "$GOLDENSPIRAL_DIR" pull --ff-only
+  else
+    say "cloning hypr-goldenspiral"
+    git clone https://github.com/ShakirAkbari/hypr-goldenspiral.git "$GOLDENSPIRAL_DIR"
+  fi
+  sh "$GOLDENSPIRAL_DIR/install.sh"
+  require_line "$HYPR_DIR/hyprland.lua" 'require("hypr.goldenspiral")'
 else
-  say "cloning hypr-goldenspiral"
-  git clone https://github.com/ShakirAkbari/hypr-goldenspiral.git "$GOLDENSPIRAL_DIR"
+  say "skipped hypr-goldenspiral"
 fi
-sh "$GOLDENSPIRAL_DIR/install.sh"
-require_line "$HYPR_DIR/hyprland.lua" 'require("hypr.goldenspiral")'
 
 # 4. Numlock on boot, before any login screen --------------------------------- #
-say "numlock: SDDM greeter + virtual consoles (needs sudo)"
-sudo install -Dm644 "$REPO/config/sddm/50-numlock.conf" /etc/sddm.conf.d/50-numlock.conf
-sudo install -Dm644 "$REPO/config/systemd/numlock-console.service" /etc/systemd/system/numlock-console.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now numlock-console.service
-say "numlock enabled"
+if confirm "Enable numlock on boot (SDDM greeter config + a systemd service, needs sudo)?"; then
+  sudo install -Dm644 "$REPO/config/sddm/50-numlock.conf" /etc/sddm.conf.d/50-numlock.conf
+  sudo install -Dm644 "$REPO/config/systemd/numlock-console.service" /etc/systemd/system/numlock-console.service
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now numlock-console.service
+  say "numlock enabled"
+else
+  say "skipped numlock setup"
+fi
 
 # 5. Limine boot menu: real timeout + auto-detected Windows entry ------------ #
 LIMINE_CONF="/boot/limine.conf"
 if [ ! -f "$LIMINE_CONF" ]; then
   warn "no $LIMINE_CONF, skipping Limine setup (not using Limine, or ESP mounted elsewhere)"
-else
-  say "backing up $LIMINE_CONF"
-  sudo cp "$LIMINE_CONF" "$LIMINE_CONF.bak.$(date +%s)"
+elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (backs it up first, needs sudo)?"; then
+  # Only back up once per run, and only if a write actually happens below,
+  # so re-running with nothing left to change doesn't pile up .bak files.
+  limine_backed_up=0
+  limine_backup() {
+    if [ "$limine_backed_up" -eq 0 ]; then
+      sudo cp "$LIMINE_CONF" "$LIMINE_CONF.bak.$(date +%s)"
+      say "backed up $LIMINE_CONF"
+      limine_backed_up=1
+    fi
+  }
 
   if grep -qE '^timeout: *(0|no) *$' "$LIMINE_CONF" 2>/dev/null || \
      ! grep -qE '^timeout:' "$LIMINE_CONF" 2>/dev/null; then
+    limine_backup
     if grep -qE '^#?timeout:' "$LIMINE_CONF"; then
       sudo sed -i -E 's/^#?timeout:.*/timeout: 5/' "$LIMINE_CONF"
     else
@@ -167,6 +194,7 @@ else
         done
       fi
       if confirm "Add a Limine entry chainloading '$name' at partition $guid?"; then
+        limine_backup
         {
           printf '\n/+%s\n' "$name"
           printf '    comment: added by omarchy-shakir\n'
@@ -179,25 +207,36 @@ else
       fi
     fi
   fi
+else
+  say "skipped Limine timeout"
 fi
 
-# 6. Personal-only: monitor layout and full package list --------------------- #
+# 6. Personal-only: monitor layout, Chromium flags, full package list -------- #
 if [ "$PERSONAL" -eq 1 ]; then
-  warn "personal mode: monitor layout is hardcoded for the author's hardware"
-  link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"
+  if confirm "Install personal monitor layout (hardcoded for the author's hardware) into $HYPR_DIR/monitors.lua?"; then
+    link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"
+  else
+    say "skipped personal monitor layout"
+  fi
 
   # NVIDIA VA-API hardware video decode in Chromium. Chromium's own VA-API
   # wrapper skips any driver named "nvidia" by default; VaapiIgnoreDriverChecks
   # and VaapiOnNvidiaGPUs bypass that, letting libva-nvidia-driver (installed
   # below) actually get used for decode instead of falling back to software.
   # Only meaningful with an NVIDIA GPU, hence personal-only.
-  link "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"
-  warn "chromium-flags.conf may get overwritten by omarchy-refresh-chromium; re-run install.sh -p if so"
+  if confirm "Enable NVIDIA hardware video decode flags for Chromium ($CONFIG_DIR/chromium-flags.conf)?"; then
+    link "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"
+    warn "chromium-flags.conf may get overwritten by omarchy-refresh-chromium; re-run install.sh -p if so"
+  else
+    say "skipped Chromium hardware video decode flags"
+  fi
 
-  if [ -f "$REPO/packages-personal.txt" ]; then
+  if [ -f "$REPO/packages-personal.txt" ] && confirm "Install the personal package list (gaming, virtualization, NVIDIA drivers, work apps) via omarchy pkg add?"; then
     say "installing personal packages"
     mapfile -t pkgs < <(grep -vE '^\s*(#|$)' "$REPO/packages-personal.txt")
     omarchy pkg add "${pkgs[@]}"
+  else
+    say "skipped personal package list"
   fi
 fi
 

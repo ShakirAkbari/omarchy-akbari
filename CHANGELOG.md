@@ -23,3 +23,10 @@
   refuses to use with the NVIDIA driver.
 - `hardwareVVizard` deliberately excluded, it's a separate, less-finished
   project.
+- `install.sh` asks a yes/no question before every step instead of running
+  them all unconditionally; declining a step skips just that one. Piped in
+  with no terminal attached, every question defaults to no.
+- Limine backup is now lazy: `/boot/limine.conf.bak.<timestamp>` is only
+  created the first time a run actually writes to it, not on every re-run,
+  and at most once per run even when both the timeout and the Windows entry
+  change.
