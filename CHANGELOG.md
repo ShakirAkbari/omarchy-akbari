@@ -30,3 +30,9 @@
   created the first time a run actually writes to it, not on every re-run,
   and at most once per run even when both the timeout and the Windows entry
   change.
+- Added `uninstall.sh`: mirrors `install.sh`, asking before removing each
+  piece and only touching what it can verify this repo installed (a symlink
+  still pointing here, a require line still present, its comment marker in
+  `/boot/limine.conf`). Refuses to delete a dirty `hypr-goldenspiral`
+  checkout, and warns before removing the personal package list since that
+  can take GPU drivers with it.

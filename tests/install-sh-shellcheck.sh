@@ -1,6 +1,6 @@
 #!/bin/sh
-# Shell-lints install.sh. Skips quietly if shellcheck isn't installed locally;
-# CI always has it.
+# Shell-lints install.sh and uninstall.sh. Skips quietly if shellcheck isn't
+# installed locally; CI always has it.
 set -eu
 
 if ! command -v shellcheck >/dev/null 2>&1; then
@@ -8,4 +8,4 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   exit 0
 fi
 
-shellcheck install.sh
+shellcheck install.sh uninstall.sh

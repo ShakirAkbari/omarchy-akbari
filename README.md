@@ -56,6 +56,30 @@ Skip it everywhere else.
 ./install.sh --personal
 ```
 
+## Uninstall
+
+```sh
+./uninstall.sh
+```
+
+Mirrors `install.sh`: asks a yes/no question before removing each piece, and
+only touches something if it can verify this repo actually put it there (a
+symlink still pointing here, a require line still present, an omarchy-shakir
+comment marker in `/boot/limine.conf`). Anything it doesn't recognize, or
+that's already gone, is reported and left alone rather than guessed at.
+
+A few things it won't do for you:
+
+- The Limine boot timeout is left at 5s rather than reverted, since there's
+  no single reliable "previous value" to go back to. Restore a
+  `/boot/limine.conf.bak.*` yourself if you want it back.
+- `hypr-goldenspiral`'s cloned directory is only offered for deletion if its
+  git tree is clean; uncommitted changes there are left in place with a
+  warning.
+- Removing the personal package list (`omarchy pkg drop`) can remove GPU
+  drivers and other packages other software depends on. It asks, but the
+  warning is real: don't say yes to this on a whim.
+
 ## What it does not touch
 
 - `hardwareVVizard` (a live-metrics wallpaper) is a separate, less-finished

@@ -4,9 +4,13 @@ Small project, informal process. Issues and PRs welcome.
 
 ## Ground rules
 
-- `install.sh` must stay idempotent: re-running it twice in a row should be a
-  no-op the second time, aside from confirmations. Use the existing `link` and
-  `require_line` helpers rather than raw `cp`/`ln`/`echo >>`.
+- `install.sh` and `uninstall.sh` must stay idempotent: re-running either
+  twice in a row should be a no-op the second time, aside from confirmations.
+  Use the existing `link`/`unlink_ours` and `require_line`/`remove_line`
+  helpers rather than raw `cp`/`ln`/`echo >>`.
+- Every step in both scripts asks before it does anything (see `confirm`).
+  Adding a new install step means adding its uninstall counterpart too, and
+  gating both behind their own confirmation.
 - Anything that touches `/boot`, `/etc`, or a partition table asks for
   confirmation first (see the Limine step) and backs up what it's about to
   change. Don't add a step that silently rewrites boot or system config.
@@ -22,8 +26,9 @@ Small project, informal process. Issues and PRs welcome.
 
 ```sh
 sh tests/no-fancy-dashes.sh
-sh tests/install-sh-shellcheck.sh   # installs nothing, just lints install.sh
+sh tests/install-sh-shellcheck.sh   # installs nothing, just lints install.sh and uninstall.sh
 bash -n install.sh                   # syntax check
+bash -n uninstall.sh
 ```
 
 ## Manual check
