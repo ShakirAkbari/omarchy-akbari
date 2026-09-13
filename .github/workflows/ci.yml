@@ -1,0 +1,21 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No em/en dashes in tracked text
+        run: sh tests/no-fancy-dashes.sh
+
+      - name: Shellcheck install.sh
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          sh tests/install-sh-shellcheck.sh
+
+      - name: Bash syntax check
+        run: bash -n install.sh

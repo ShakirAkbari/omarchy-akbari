@@ -1,0 +1,84 @@
+# omarchy-shakir
+
+Post-install setup for [Omarchy](https://omarchy.org). Run this once after a
+fresh Omarchy install and it gets a machine to the state I actually use:
+keybindings, look'n'feel, the [golden-spiral layout](https://github.com/ShakirAkbari/hypr-goldenspiral)
+and its taskbar, numlock on before you ever see a login screen, and a Limine
+boot menu that actually shows up and can chainload Windows.
+
+```
++-----------------------------------------------------------------+
+|  install.sh                                                     |
+|                                                                  |
+|  bindings.lua, looknfeel.lua  ---->  ~/.config/hypr/            |
+|  spotify-play-key, -stop-key  ---->  ~/.local/bin/               |
+|  hypr-goldenspiral (cloned)   ---->  ~/Projects/, its own        |
+|                                       install.sh, then wired     |
+|                                       into hyprland.lua          |
+|  numlock (sddm + systemd)     ---->  /etc/sddm.conf.d/,          |
+|                                       /etc/systemd/system/       |
+|  Limine timeout + Windows     ---->  /boot/limine.conf           |
+|                                       (auto-detected via         |
+|                                        efibootmgr, asks first)   |
+|                                                                  |
+|  -p / --personal only:                                          |
+|    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
+|    packages-personal.txt      ---->  omarchy pkg add             |
++-----------------------------------------------------------------+
+```
+
+## Install
+
+```sh
+git clone https://github.com/ShakirAkbari/omarchy-shakir.git ~/Projects/omarchy-shakir
+cd ~/Projects/omarchy-shakir
+./install.sh
+```
+
+Re-running is safe. Existing files it would overwrite get backed up next to
+themselves as `<file>.bak.<timestamp>` first.
+
+Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
+monitor layout and my full extra package list (gaming, virtualization,
+NVIDIA drivers, work apps). Skip it everywhere else.
+
+```sh
+./install.sh --personal
+```
+
+## What it does not touch
+
+- `hardwareVVizard` (a live-metrics wallpaper) is a separate, less-finished
+  project and is intentionally not part of this repo.
+- `autostart.lua`, `input.lua`, and `hyprland.lua`'s body are left as-is,
+  beyond adding the one `require("hypr.goldenspiral")` line if it's missing.
+- Anything not listed in the diagram above. This installs config, not a
+  full system image.
+
+## Requirements
+
+- Omarchy (checked at the top of `install.sh`; the `o.*` / `hl.*` Lua config
+  API this repo uses is Omarchy's, not vanilla Hyprland).
+- `sudo` access, for the numlock service and (if you confirm it) the Limine
+  edit.
+- Limine as the bootloader, for the boot-menu step. If it's not present,
+  that step is skipped with a message; everything else still runs.
+
+## Why numlock needs two fixes
+
+SDDM's own `Numlock=on` setting is ignored once autologin is enabled, which
+is Omarchy's default. So this also installs a small systemd service that
+turns numlock on for every virtual console (`setleds -D +num`) before any
+login screen renders, independent of SDDM.
+
+## Why the Limine step asks before writing
+
+The Windows entry is built from a partition GUID read out of `efibootmgr`.
+If a machine has multiple Windows Boot Manager entries (stale ones from a
+previous install are common), this picks the first and tells you what else
+it found. Confirm before it writes anything; if it picked the wrong one,
+edit the GUID in `/boot/limine.conf` yourself afterward.
+
+## License
+
+MIT, see `LICENSE`.

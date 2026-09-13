@@ -1,0 +1,7 @@
+# backups this installer makes before overwriting a file
+*.bak
+*.bak.*
+
+# editor / OS noise
+*~
+.DS_Store

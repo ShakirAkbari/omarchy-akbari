@@ -1,0 +1,9 @@
+#!/bin/bash
+# Media "play" key:
+#   Spotify not running -> launch it
+#   Spotify running      -> toggle play/pause
+if pgrep -x spotify >/dev/null; then
+  omarchy-shell -q media playPause
+else
+  exec uwsm-app -- spotify
+fi

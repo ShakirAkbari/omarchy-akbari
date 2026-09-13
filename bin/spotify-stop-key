@@ -1,0 +1,37 @@
+#!/bin/bash
+# Media "stop" key:
+#   single press -> stop playback (pause; Spotify has no true "stop")
+#   double press -> quit Spotify
+STATE="${XDG_RUNTIME_DIR:-/tmp}/spotify-stop-key.stamp"
+WINDOW_MS=400
+now=$(date +%s%3N)
+
+quit_spotify() {
+  # Ask Spotify to quit itself, exactly like its menu "Quit" (saves state,
+  # no crash dialog on next launch). Fall back to a polite SIGTERM.
+  gdbus call --session \
+    --dest org.mpris.MediaPlayer2.spotify \
+    --object-path /org/mpris/MediaPlayer2 \
+    --method org.mpris.MediaPlayer2.Quit >/dev/null 2>&1 && return
+  pkill -TERM -x spotify
+}
+
+if [[ -f "$STATE" ]]; then
+  last=$(<"$STATE")
+  if [[ "$last" =~ ^[0-9]+$ ]] && (( now - last < WINDOW_MS )); then
+    rm -f "$STATE"
+    quit_spotify
+    exit 0
+  fi
+fi
+
+echo "$now" >"$STATE"
+(
+  sleep 0.4
+  # Only act as a single press if no second press replaced our stamp.
+  if [[ -f "$STATE" && "$(<"$STATE")" == "$now" ]]; then
+    rm -f "$STATE"
+    omarchy-shell -q media pause
+  fi
+) &
+disown
