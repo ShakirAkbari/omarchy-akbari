@@ -224,6 +224,28 @@ else
   say "shakir.workspaces bar widget not installed, nothing to do"
 fi
 
+SPOTIFY_PLUGIN_DIR="$CONFIG_DIR/omarchy/plugins/shakir.spotify"
+if [ -L "$SPOTIFY_PLUGIN_DIR/SpotifyWidget.qml" ]; then
+  if confirm "Remove the shakir.spotify bar widget?"; then
+    unlink_ours "$REPO/config/omarchy/plugins/shakir.spotify/manifest.json" "$SPOTIFY_PLUGIN_DIR/manifest.json"
+    unlink_ours "$REPO/config/omarchy/plugins/shakir.spotify/SpotifyWidget.qml" "$SPOTIFY_PLUGIN_DIR/SpotifyWidget.qml"
+    rmdir "$SPOTIFY_PLUGIN_DIR" 2>/dev/null || true
+    SHELL_JSON="$CONFIG_DIR/omarchy/shell.json"
+    if [ -f "$SHELL_JSON" ] && command -v jq >/dev/null 2>&1; then
+      SHELL_JSON_TMP=$(mktemp)
+      jq '(.bar.layout.left, .bar.layout.center, .bar.layout.right) |= map(select(.id != "shakir.spotify"))' "$SHELL_JSON" > "$SHELL_JSON_TMP"
+      mv "$SHELL_JSON_TMP" "$SHELL_JSON"
+      say "removed shakir.spotify from $SHELL_JSON's bar layout"
+    else
+      warn "no $SHELL_JSON or jq not found; remove shakir.spotify from its bar layout yourself"
+    fi
+  else
+    say "left the shakir.spotify bar widget in place"
+  fi
+else
+  say "shakir.spotify bar widget not installed, nothing to do"
+fi
+
 if [ -L "$CONFIG_DIR/chromium-flags.conf" ]; then
   if confirm "Remove the NVIDIA hardware video decode Chromium flags ($CONFIG_DIR/chromium-flags.conf)?"; then
     unlink_ours "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"

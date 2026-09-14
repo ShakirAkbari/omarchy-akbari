@@ -261,6 +261,32 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped shakir.workspaces bar widget"
   fi
 
+  # shakir.spotify: Spotify now-playing + play/pause/skip in the bar, between
+  # the center section (clock/weather) and the right-side icon cluster.
+  # Reads Quickshell's Mpris module directly rather than Omarchy's own
+  # omarchy.media service, which third-party bar widgets are sandboxed away
+  # from (see the comment atop SpotifyWidget.qml).
+  if confirm "Install the shakir.spotify bar widget (Spotify now-playing, added to $CONFIG_DIR/omarchy/shell.json's bar layout)?"; then
+    plugin_dir="$CONFIG_DIR/omarchy/plugins/shakir.spotify"
+    mkdir -p "$plugin_dir"
+    link "$REPO/config/omarchy/plugins/shakir.spotify/manifest.json" "$plugin_dir/manifest.json"
+    link "$REPO/config/omarchy/plugins/shakir.spotify/SpotifyWidget.qml" "$plugin_dir/SpotifyWidget.qml"
+
+    shell_json="$CONFIG_DIR/omarchy/shell.json"
+    if [ ! -f "$shell_json" ] || ! command -v jq >/dev/null 2>&1; then
+      warn "no $shell_json or jq not found; add {\"id\": \"shakir.spotify\"} to its bar layout yourself"
+    elif jq -e '[.bar.layout.left[]?, .bar.layout.center[]?, .bar.layout.right[]?] | any(.id == "shakir.spotify")' "$shell_json" >/dev/null 2>&1; then
+      say "shakir.spotify already wired into $shell_json"
+    else
+      shell_json_tmp=$(mktemp)
+      jq '.bar.layout.right = [{"id": "shakir.spotify"}] + .bar.layout.right' "$shell_json" > "$shell_json_tmp"
+      mv "$shell_json_tmp" "$shell_json"
+      say "added shakir.spotify to the start of $shell_json's right bar section"
+    fi
+  else
+    say "skipped shakir.spotify bar widget"
+  fi
+
   # NVIDIA VA-API hardware video decode in Chromium. Chromium's own VA-API
   # wrapper skips any driver named "nvidia" by default; VaapiIgnoreDriverChecks
   # and VaapiOnNvidiaGPUs bypass that, letting libva-nvidia-driver (installed

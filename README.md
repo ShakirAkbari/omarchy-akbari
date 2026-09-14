@@ -32,6 +32,9 @@ boot menu that actually shows up and can chainload Windows.
 |                                       swapped in for              |
 |                                       omarchy.workspaces in       |
 |                                       shell.json's bar layout     |
+|    shakir.spotify plugin      ---->  ~/.config/omarchy/plugins/, |
+|                                       added to shell.json's        |
+|                                       bar layout (right section)  |
 |    chromium-flags.conf      ---->  ~/.config/chromium-flags.conf |
 |    packages-personal.txt      ---->  omarchy pkg add             |
 +-----------------------------------------------------------------+
@@ -125,6 +128,18 @@ up once to `hyprland.lua.bak.omarchy-shakir` so uninstall can restore
 Omarchy's original. It gets overwritten back to Omarchy's default by any
 `omarchy update` that touches `omarchy-settings`, so re-run `install.sh`
 after one if numlock stops working at the greeter again.
+
+## Why shakir.spotify reads Mpris directly instead of Omarchy's media service
+
+Omarchy ships a built-in `omarchy.media` service with full MPRIS metadata and
+play/pause/skip, but it's only reachable through `firstPartyServiceFor`, and
+that call is sandboxed to `kind: "bar"` plugins (full bar replacements) and
+clones of `omarchy.indicators` specifically; an ordinary third-party
+bar-widget like this one gets `null` back, silently. `SpotifyWidget.qml`
+instead imports `Quickshell.Services.Mpris` directly (the same module
+`omarchy.media`'s own service is built on) and reimplements the small slice
+of play/pause/skip logic it needs against whichever player's `dbusName` or
+`desktopEntry` matches Spotify.
 
 ## Why the Chromium flags need VaapiIgnoreDriverChecks
 
