@@ -25,6 +25,9 @@ boot menu that actually shows up and can chainload Windows.
 |  Limine timeout + Windows     ---->  /boot/limine.conf           |
 |                                       (auto-detected via         |
 |                                        efibootmgr, asks first)   |
+|  Remmina Host key             ---->  ~/.config/remmina/          |
+|                                       remmina.pref (Right Ctrl    |
+|                                       -> Scroll Lock, if present) |
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
@@ -49,15 +52,25 @@ cd ~/Projects/omarchy-shakir
 ```
 
 It asks a yes/no question before each step (keybindings, Spotify keys,
-hypr-goldenspiral, numlock, Limine, and each personal-only piece), so you
-can decline anything you don't want on a given run. Piped in with no
-terminal attached (`curl ... | bash`), every question defaults to no.
+hypr-goldenspiral, numlock, Limine, Remmina's Host key, and each
+personal-only piece), so you can decline anything you don't want on a
+given run. Piped in with no terminal attached (`curl ... | bash`), every
+question defaults to no.
 
 Re-running is safe and does not create duplicates: existing files it would
 overwrite get backed up next to themselves as `<file>.bak.<timestamp>`
 (once, the first time, not on every run), already-correct symlinks and
 already-present `hyprland.lua` require lines are left alone, and the Limine
 config is only backed up when it's actually about to change.
+
+Remmina's default Host key is Right Ctrl, which it grabs locally for its own
+shortcuts (fullscreen, keyboard grab toggle, disconnect, etc.) instead of
+forwarding it to the remote session. That eats combos like Ctrl+Shift+Arrow
+when you use the right-hand Ctrl key. If `~/.config/remmina/remmina.pref`
+already exists, install.sh offers to rebind the Host key to Scroll Lock
+instead, freeing Right Ctrl back up. Remmina rewrites that file on exit, so
+quit it first (including the tray icon, not just the window) or the change
+gets clobbered.
 
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
 monitor layout, Chromium flags enabling NVIDIA hardware video decode, and my

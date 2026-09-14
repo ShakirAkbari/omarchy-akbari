@@ -226,7 +226,22 @@ else
   say "skipped Limine timeout"
 fi
 
-# 6. Personal-only: monitor layout, Chromium flags, full package list -------- #
+# 6. Remmina: free up Right Ctrl as a Host key -------------------------------- #
+REMMINA_PREF="$CONFIG_DIR/remmina/remmina.pref"
+if [ -f "$REMMINA_PREF" ]; then
+  if confirm "Change Remmina's Host key from Right Ctrl to Scroll Lock in $REMMINA_PREF (Right Ctrl as Host key swallows Ctrl+Shift+Arrow and other right-Ctrl combos before they reach the remote session)?"; then
+    if pgrep -x remmina >/dev/null 2>&1; then
+      warn "Remmina is running and rewrites this file on exit, which would undo this; quit Remmina (check the tray, not just the window) and re-run"
+    else
+      sed -i 's/^hostkey=.*/hostkey=65300/; s/^shortcutkey_grab=.*/shortcutkey_grab=65300/' "$REMMINA_PREF"
+      say "set Remmina's Host key to Scroll Lock (65300) in $REMMINA_PREF"
+    fi
+  else
+    say "skipped Remmina host key"
+  fi
+fi
+
+# 7. Personal-only: monitor layout, Chromium flags, full package list -------- #
 if [ "$PERSONAL" -eq 1 ]; then
   if confirm "Install personal monitor layout (hardcoded for the author's hardware) into $HYPR_DIR/monitors.lua?"; then
     link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"

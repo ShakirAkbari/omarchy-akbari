@@ -191,7 +191,22 @@ else
   say "left the Limine Windows entry in place"
 fi
 
-# 6. Personal-only: monitor layout, Chromium flags, package list ------------- #
+# 6. Remmina: restore the default Host key ------------------------------------ #
+REMMINA_PREF="$CONFIG_DIR/remmina/remmina.pref"
+if [ -f "$REMMINA_PREF" ] && grep -qF "hostkey=65300" "$REMMINA_PREF"; then
+  if confirm "Restore Remmina's Host key from Scroll Lock back to Right Ctrl (Remmina's default) in $REMMINA_PREF?"; then
+    if pgrep -x remmina >/dev/null 2>&1; then
+      warn "Remmina is running and rewrites this file on exit, which would undo this; quit Remmina (check the tray, not just the window) and re-run"
+    else
+      sed -i 's/^hostkey=.*/hostkey=65508/; s/^shortcutkey_grab=.*/shortcutkey_grab=65508/' "$REMMINA_PREF"
+      say "restored Remmina's Host key to Right Ctrl (65508) in $REMMINA_PREF"
+    fi
+  else
+    say "left Remmina's Host key as is"
+  fi
+fi
+
+# 7. Personal-only: monitor layout, Chromium flags, package list ------------- #
 if [ -L "$HYPR_DIR/monitors.lua" ]; then
   if confirm "Remove the personal monitor layout from $HYPR_DIR/monitors.lua?"; then
     unlink_ours "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"

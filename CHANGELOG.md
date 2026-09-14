@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- `install.sh` now offers to rebind Remmina's Host key from Right Ctrl to
+  Scroll Lock in `~/.config/remmina/remmina.pref`, if that file exists.
+  Right Ctrl as the Host key gets grabbed locally for Remmina's own
+  shortcuts, which was swallowing Ctrl+Shift+Arrow (and other right-Ctrl
+  combos) before they reached the remote session. `uninstall.sh` mirrors
+  this, restoring 65508 (Right Ctrl), but only when it can verify the value
+  is still what this repo set (65300). Both scripts check for a running
+  Remmina first, since it rewrites this file on exit and would otherwise
+  clobber the change.
 - `-p`/`--personal`: `config/hypr/monitors.lua.personal` now binds golden-spiral's
   workspace (10) to the main ultrawide as its default via
   `hl.workspace_rule({ workspace = "10", monitor = "...", default = true })`,
