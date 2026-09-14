@@ -279,9 +279,13 @@ if [ "$PERSONAL" -eq 1 ]; then
       say "shakir.spotify already wired into $shell_json"
     else
       shell_json_tmp=$(mktemp)
-      jq '.bar.layout.right = [{"id": "shakir.spotify"}] + .bar.layout.right' "$shell_json" > "$shell_json_tmp"
+      # The spacer after it (not before: "right" is anchored to the screen's
+      # right edge, so padding only has to go on the inner side) pushes it
+      # away from the tray/network/etc. cluster so it reads as sitting in the
+      # gap between the center section and that cluster, not glued to either.
+      jq '.bar.layout.right = [{"id": "shakir.spotify"}, {"id": "omarchy.spacer", "size": 400}] + .bar.layout.right' "$shell_json" > "$shell_json_tmp"
       mv "$shell_json_tmp" "$shell_json"
-      say "added shakir.spotify to the start of $shell_json's right bar section"
+      say "added shakir.spotify (with a spacer after it) to the start of $shell_json's right bar section"
     fi
   else
     say "skipped shakir.spotify bar widget"

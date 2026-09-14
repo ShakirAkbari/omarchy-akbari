@@ -233,7 +233,21 @@ if [ -L "$SPOTIFY_PLUGIN_DIR/SpotifyWidget.qml" ]; then
     SHELL_JSON="$CONFIG_DIR/omarchy/shell.json"
     if [ -f "$SHELL_JSON" ] && command -v jq >/dev/null 2>&1; then
       SHELL_JSON_TMP=$(mktemp)
-      jq '(.bar.layout.left, .bar.layout.center, .bar.layout.right) |= map(select(.id != "shakir.spotify"))' "$SHELL_JSON" > "$SHELL_JSON_TMP"
+      # Also drop the spacer install.sh added right after it (matched by
+      # position, not size, in case it was ever hand-tuned) - not just the
+      # widget itself, or its gap would linger as orphaned blank space.
+      jq '
+        (.bar.layout.left, .bar.layout.center, .bar.layout.right) |= (
+          . as $arr
+          | [range(0; length) as $i
+             | select(
+                 ($arr[$i].id != "shakir.spotify")
+                 and (($i == 0) or ($arr[$i-1].id != "shakir.spotify") or ($arr[$i].id != "omarchy.spacer"))
+               )
+             | $arr[$i]
+            ]
+        )
+      ' "$SHELL_JSON" > "$SHELL_JSON_TMP"
       mv "$SHELL_JSON_TMP" "$SHELL_JSON"
       say "removed shakir.spotify from $SHELL_JSON's bar layout"
     else

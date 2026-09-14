@@ -13,9 +13,11 @@
 - `-p`/`--personal`: new `shakir.spotify` bar widget
   (`config/omarchy/plugins/shakir.spotify/`) showing Spotify's current track
   with play/pause/skip, added to the start of `shell.json`'s right bar
-  section (between the clock/weather and the tray/network/etc. cluster).
-  Title flashes briefly on track change. Reads `Quickshell.Services.Mpris`
-  directly rather than Omarchy's `omarchy.media` service, which third-party
+  section with an `omarchy.spacer` (size 400) right after it, so it sits in
+  the gap between the clock/weather and the tray/network/etc. cluster
+  instead of glued to either. Title flashes briefly on track change. Reads
+  `Quickshell.Services.Mpris` directly rather than Omarchy's `omarchy.media`
+  service, which third-party
   bar widgets can't reach (see the README section on why).
 - Initial release: `install.sh` with default and `-p`/`--personal` modes.
 - Keybindings (`config/hypr/bindings.lua`) and look'n'feel
