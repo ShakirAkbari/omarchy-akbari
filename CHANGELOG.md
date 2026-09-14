@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- `-p`/`--personal`: `config/hypr/monitors.lua.personal` now binds golden-spiral's
+  workspace (10) to the main ultrawide as its default via
+  `hl.workspace_rule({ workspace = "10", monitor = "...", default = true })`,
+  so it's what's showing after a fresh session start instead of whatever
+  workspace Hyprland last remembered. Confirmed this merges cleanly with
+  hypr-goldenspiral's own `hl.workspace_rule` call for the same workspace
+  (which sets `layout`, not `monitor`/`default`) rather than one overwriting
+  the other; checked via `hyprctl workspacerules` and `hyprctl activeworkspace`.
 - `-p`/`--personal`: new `shakir.spotify` bar widget
   (`config/omarchy/plugins/shakir.spotify/`) showing Spotify's current track
   with play/pause/skip, added to the start of `shell.json`'s right bar

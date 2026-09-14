@@ -22,3 +22,8 @@ hl.monitor({ output = "desc:Microstep MSI MAG401QR", mode = "3440x1440@60", posi
 -- Secondary monitor (Dell U2211H) rotated to portrait, right of the ultrawide.
 -- transform = 1 is 90° (clockwise). Switch to 3 for 270° (counter-clockwise) if it's upside down for your setup.
 hl.monitor({ output = "desc:Dell Inc. DELL U2211H", mode = "1920x1080@60", position = "3440x0", scale = 1, transform = 1 })
+
+-- golden-spiral's workspace (10, matching ~/.config/goldenspiral/bar.json's
+-- "workspace" key) always shows on the main ultrawide at session start,
+-- instead of landing on whatever workspace Hyprland last remembered.
+hl.workspace_rule({ workspace = "10", monitor = "desc:Microstep MSI MAG401QR", default = true })

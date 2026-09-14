@@ -140,7 +140,7 @@ BarWidget {
       if (wheel.angleDelta.y > 0) root.runAction("previous")
       else if (wheel.angleDelta.y < 0) root.runAction("next")
     }
-    onEntered: if (root.bar) root.bar.showTooltip(root, root.hasMedia ? (root.title + (root.artist ? " — " + root.artist : "")) : "")
+    onEntered: if (root.bar) root.bar.showTooltip(root, root.hasMedia ? (root.title + (root.artist ? " - " + root.artist : "")) : "")
     onExited: if (root.bar) root.bar.hideTooltip(root)
   }
 
