@@ -202,6 +202,28 @@ else
   say "personal monitor layout not installed, nothing to do"
 fi
 
+PLUGIN_DIR="$CONFIG_DIR/omarchy/plugins/shakir.workspaces"
+if [ -L "$PLUGIN_DIR/Workspaces.qml" ]; then
+  if confirm "Remove the shakir.workspaces bar widget and swap it back to omarchy.workspaces?"; then
+    unlink_ours "$REPO/config/omarchy/plugins/shakir.workspaces/manifest.json" "$PLUGIN_DIR/manifest.json"
+    unlink_ours "$REPO/config/omarchy/plugins/shakir.workspaces/Workspaces.qml" "$PLUGIN_DIR/Workspaces.qml"
+    rmdir "$PLUGIN_DIR" 2>/dev/null || true
+    SHELL_JSON="$CONFIG_DIR/omarchy/shell.json"
+    if [ -f "$SHELL_JSON" ] && command -v jq >/dev/null 2>&1; then
+      SHELL_JSON_TMP=$(mktemp)
+      jq '(.bar.layout.left, .bar.layout.center, .bar.layout.right) |= map(if .id == "shakir.workspaces" then .id = "omarchy.workspaces" else . end)' "$SHELL_JSON" > "$SHELL_JSON_TMP"
+      mv "$SHELL_JSON_TMP" "$SHELL_JSON"
+      say "swapped shakir.workspaces -> omarchy.workspaces in $SHELL_JSON"
+    else
+      warn "no $SHELL_JSON or jq not found; swap shakir.workspaces back to omarchy.workspaces yourself"
+    fi
+  else
+    say "left the shakir.workspaces bar widget in place"
+  fi
+else
+  say "shakir.workspaces bar widget not installed, nothing to do"
+fi
+
 if [ -L "$CONFIG_DIR/chromium-flags.conf" ]; then
   if confirm "Remove the NVIDIA hardware video decode Chromium flags ($CONFIG_DIR/chromium-flags.conf)?"; then
     unlink_ours "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"

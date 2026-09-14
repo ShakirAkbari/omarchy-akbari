@@ -13,7 +13,10 @@ boot menu that actually shows up and can chainload Windows.
 |  bindings.lua, looknfeel.lua  ---->  ~/.config/hypr/            |
 |  spotify-play-key, -stop-key  ---->  ~/.local/bin/               |
 |  hypr-goldenspiral (cloned)   ---->  ~/Projects/, its own        |
-|                                       install.sh, then wired     |
+|                                       install.sh (which in turn  |
+|                                       clones/updates and wires   |
+|                                       up hypr-chronobar as a     |
+|                                       dependency), then wired    |
 |                                       into hyprland.lua          |
 |  numlock (sddm + systemd)     ---->  /etc/sddm.conf.d/,          |
 |                                       /etc/systemd/system/,      |
@@ -25,6 +28,10 @@ boot menu that actually shows up and can chainload Windows.
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
+|    shakir.workspaces plugin   ---->  ~/.config/omarchy/plugins/, |
+|                                       swapped in for              |
+|                                       omarchy.workspaces in       |
+|                                       shell.json's bar layout     |
 |    chromium-flags.conf      ---->  ~/.config/chromium-flags.conf |
 |    packages-personal.txt      ---->  omarchy pkg add             |
 +-----------------------------------------------------------------+

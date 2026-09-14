@@ -22,6 +22,18 @@
   workspace list already contained it, which stopped happening once the bar
   became a separate layer-shell dock instead of a tiled window pinned there.
   Hardcoded it into the widget's always-shown ids, same as 1-5.
+- `-p`/`--personal`: `install.sh` now actually installs the
+  `shakir.workspaces` bar widget (`config/omarchy/plugins/shakir.workspaces/`)
+  into `~/.config/omarchy/plugins/` and swaps it in for `omarchy.workspaces`
+  in `shell.json`'s bar layout via `jq`. The plugin file had been tracked in
+  the repo since an earlier commit but was never wired into `install.sh`, so
+  a fresh clone never actually reproduced it.
+- Fixed `bindings.lua`, `looknfeel.lua`, `monitors.lua`, `chromium-flags.conf`,
+  and both spotify key scripts having silently become plain file copies on
+  the author's machine instead of the symlinks `install.sh` creates (content
+  matched, so nothing broke, but repo updates stopped propagating). Relinked;
+  cause not fully diagnosed, but an editor doing an atomic write-then-rename
+  over a symlinked path is the most likely explanation.
 - Limine boot menu: enables a real `timeout:`, and auto-detects a Windows
   Boot Manager entry via `efibootmgr` to offer as a chainload entry (asks
   for confirmation before writing).

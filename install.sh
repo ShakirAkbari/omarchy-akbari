@@ -234,6 +234,33 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped personal monitor layout"
   fi
 
+  # shakir.workspaces: a clone of Omarchy's built-in workspaces bar widget
+  # (the id itself is personal, hence -p only) that always shows a spiral
+  # icon for workspace 10, where golden-spiral lives instead of a plain
+  # number. Swaps it in for omarchy.workspaces in shell.json's bar layout.
+  if confirm "Install the shakir.workspaces bar widget (replaces omarchy.workspaces in $CONFIG_DIR/omarchy/shell.json with a golden-spiral-aware version)?"; then
+    plugin_dir="$CONFIG_DIR/omarchy/plugins/shakir.workspaces"
+    mkdir -p "$plugin_dir"
+    link "$REPO/config/omarchy/plugins/shakir.workspaces/manifest.json" "$plugin_dir/manifest.json"
+    link "$REPO/config/omarchy/plugins/shakir.workspaces/Workspaces.qml" "$plugin_dir/Workspaces.qml"
+
+    shell_json="$CONFIG_DIR/omarchy/shell.json"
+    if [ ! -f "$shell_json" ] || ! command -v jq >/dev/null 2>&1; then
+      warn "no $shell_json or jq not found; add {\"id\": \"shakir.workspaces\"} to its bar layout yourself"
+    elif jq -e '[.bar.layout.left[]?, .bar.layout.center[]?, .bar.layout.right[]?] | any(.id == "shakir.workspaces")' "$shell_json" >/dev/null 2>&1; then
+      say "shakir.workspaces already wired into $shell_json"
+    elif jq -e '[.bar.layout.left[]?, .bar.layout.center[]?, .bar.layout.right[]?] | any(.id == "omarchy.workspaces")' "$shell_json" >/dev/null 2>&1; then
+      shell_json_tmp=$(mktemp)
+      jq '(.bar.layout.left, .bar.layout.center, .bar.layout.right) |= map(if .id == "omarchy.workspaces" then .id = "shakir.workspaces" else . end)' "$shell_json" > "$shell_json_tmp"
+      mv "$shell_json_tmp" "$shell_json"
+      say "swapped omarchy.workspaces -> shakir.workspaces in $shell_json"
+    else
+      warn "no omarchy.workspaces entry found in $shell_json's bar layout; add {\"id\": \"shakir.workspaces\"} yourself"
+    fi
+  else
+    say "skipped shakir.workspaces bar widget"
+  fi
+
   # NVIDIA VA-API hardware video decode in Chromium. Chromium's own VA-API
   # wrapper skips any driver named "nvidia" by default; VaapiIgnoreDriverChecks
   # and VaapiOnNvidiaGPUs bypass that, letting libva-nvidia-driver (installed
