@@ -123,9 +123,24 @@ else
 fi
 
 # 4. Numlock on boot, before any login screen --------------------------------- #
-if confirm "Enable numlock on boot (SDDM greeter config + a systemd service, needs sudo)?"; then
+if confirm "Enable numlock on boot (SDDM greeter config + its own Hyprland config + a systemd service, needs sudo)?"; then
   sudo install -Dm644 "$REPO/config/sddm/50-numlock.conf" /etc/sddm.conf.d/50-numlock.conf
   sudo install -Dm644 "$REPO/config/systemd/numlock-console.service" /etc/systemd/system/numlock-console.service
+  # The SDDM Wayland greeter runs its own Hyprland instance with its own
+  # config, separate from the session config that require("hypr.goldenspiral")
+  # etc. get wired into. It ignores input.numlock_by_default unless this file
+  # sets it too, and is owned by the omarchy-settings package, so it gets
+  # overwritten back to Omarchy's default by every `omarchy update` that
+  # touches that package: this step needs re-running after such an update.
+  # It pre-exists (unlike the two installs above), so back it up once, the
+  # same way the Limine step does, rather than losing Omarchy's original.
+  sddm_hypr=/usr/share/sddm/hyprland.lua
+  if [ -f "$sddm_hypr" ] && [ ! -f "$sddm_hypr.bak.omarchy-shakir" ] && \
+     ! cmp -s "$REPO/config/sddm/hyprland.lua" "$sddm_hypr"; then
+    sudo cp "$sddm_hypr" "$sddm_hypr.bak.omarchy-shakir"
+    say "backed up $sddm_hypr"
+  fi
+  sudo install -Dm644 "$REPO/config/sddm/hyprland.lua" "$sddm_hypr"
   sudo systemctl daemon-reload
   sudo systemctl enable --now numlock-console.service
   say "numlock enabled"

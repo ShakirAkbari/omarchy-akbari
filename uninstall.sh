@@ -137,12 +137,18 @@ else
 fi
 
 # 4. Numlock on boot ---------------------------------------------------------- #
-if [ -f /etc/systemd/system/numlock-console.service ] || [ -f /etc/sddm.conf.d/50-numlock.conf ]; then
+SDDM_HYPR=/usr/share/sddm/hyprland.lua
+SDDM_HYPR_BAK="$SDDM_HYPR.bak.omarchy-shakir"
+if [ -f /etc/systemd/system/numlock-console.service ] || [ -f /etc/sddm.conf.d/50-numlock.conf ] || [ -f "$SDDM_HYPR_BAK" ]; then
   if confirm "Disable numlock-on-boot and remove its files (needs sudo)?"; then
     sudo systemctl disable --now numlock-console.service 2>/dev/null || true
     sudo rm -f /etc/systemd/system/numlock-console.service
     sudo rm -f /etc/sddm.conf.d/50-numlock.conf
     sudo systemctl daemon-reload
+    if [ -f "$SDDM_HYPR_BAK" ]; then
+      sudo mv "$SDDM_HYPR_BAK" "$SDDM_HYPR"
+      say "restored $SDDM_HYPR from $SDDM_HYPR_BAK"
+    fi
     say "numlock-on-boot removed"
   else
     say "left numlock-on-boot in place"

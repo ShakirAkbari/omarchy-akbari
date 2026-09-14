@@ -18,7 +18,10 @@ BarWidget {
   }
 
   function workspaceIds() {
-    var ids = [1, 2, 3, 4, 5]
+    // 10 (golden-spiral) is always shown even when it doesn't currently
+    // "exist" in Hyprland's workspace list (nothing keeps it populated now
+    // that the bar is a separate layer-shell dock, not a tiled window on it).
+    var ids = [1, 2, 3, 4, 5, 10]
     var values = Hyprland.workspaces.values
 
     for (var i = 0; i < values.length; i++) {

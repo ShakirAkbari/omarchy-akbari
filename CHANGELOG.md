@@ -11,6 +11,17 @@
 - Numlock on before any login screen: SDDM greeter `Numlock=on` plus a
   `numlock-console.service` systemd unit for the virtual consoles, since
   SDDM ignores its own numlock setting under autologin.
+- Numlock also needed a third fix: the SDDM Wayland greeter runs its own
+  Hyprland instance via `/usr/share/sddm/hyprland.lua` (owned by the
+  `omarchy-settings` package), which doesn't set `input.numlock_by_default`
+  the way the session config does. `install.sh` now installs a copy of that
+  file with the setting added, backing up Omarchy's original once so
+  `uninstall.sh` can restore it.
+- `shakir.workspaces` (the cloned workspace-bar plugin): workspace 10, where
+  golden-spiral lives, only showed its spiral icon when Hyprland's live
+  workspace list already contained it, which stopped happening once the bar
+  became a separate layer-shell dock instead of a tiled window pinned there.
+  Hardcoded it into the widget's always-shown ids, same as 1-5.
 - Limine boot menu: enables a real `timeout:`, and auto-detects a Windows
   Boot Manager entry via `efibootmgr` to offer as a chainload entry (asks
   for confirmation before writing).

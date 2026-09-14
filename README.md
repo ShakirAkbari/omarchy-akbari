@@ -16,7 +16,9 @@ boot menu that actually shows up and can chainload Windows.
 |                                       install.sh, then wired     |
 |                                       into hyprland.lua          |
 |  numlock (sddm + systemd)     ---->  /etc/sddm.conf.d/,          |
-|                                       /etc/systemd/system/       |
+|                                       /etc/systemd/system/,      |
+|                                       /usr/share/sddm/           |
+|                                       hyprland.lua (backed up)   |
 |  Limine timeout + Windows     ---->  /boot/limine.conf           |
 |                                       (auto-detected via         |
 |                                        efibootmgr, asks first)   |
@@ -98,12 +100,24 @@ A few things it won't do for you:
 - Limine as the bootloader, for the boot-menu step. If it's not present,
   that step is skipped with a message; everything else still runs.
 
-## Why numlock needs two fixes
+## Why numlock needs three fixes
 
 SDDM's own `Numlock=on` setting is ignored once autologin is enabled, which
 is Omarchy's default. So this also installs a small systemd service that
 turns numlock on for every virtual console (`setleds -D +num`) before any
 login screen renders, independent of SDDM.
+
+Neither of those reaches the greeter you actually see, though: on Omarchy,
+SDDM's Wayland greeter is itself a Hyprland session, started via its own
+config at `/usr/share/sddm/hyprland.lua` (separate from `~/.config/hypr/`,
+and owned by the `omarchy-settings` package, not this repo). That config
+doesn't set `input.numlock_by_default`, so numpad digits don't register when
+typing your password there even with the other two fixes in place. This repo
+installs a copy of that file with `numlock_by_default = true` added, backed
+up once to `hyprland.lua.bak.omarchy-shakir` so uninstall can restore
+Omarchy's original. It gets overwritten back to Omarchy's default by any
+`omarchy update` that touches `omarchy-settings`, so re-run `install.sh`
+after one if numlock stops working at the greeter again.
 
 ## Why the Chromium flags need VaapiIgnoreDriverChecks
 
