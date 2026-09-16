@@ -276,6 +276,31 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped personal monitor layout"
   fi
 
+  # Monitors attach asynchronously at session start, and whichever one
+  # attaches last tends to end up as Hyprland's initially focused monitor,
+  # regardless of the workspace_rule "default" settings above (those pick
+  # which workspace shows on a monitor, not which monitor holds keyboard/
+  # cursor focus). Since the portrait monitor is declared second in
+  # monitors.lua.personal, it was winning that race, so anything that opens
+  # "on the active monitor" (the Spotlight launcher included) landed there
+  # right after login instead of on the main ultrawide, and the session
+  # could start on whatever workspace instead of golden-spiral (10).
+  #
+  # This build of Hyprland (Omarchy's Lua config layer) doesn't take plain
+  # `hyprctl dispatch <dispatcher> <args>`; dispatchers are Lua calls under
+  # hl.dsp.*, run via hl.dispatch(...). Switching straight to workspace 10
+  # (hl.dsp.focus({ workspace = "10" }), same call bindings.lua uses for
+  # SUPER + <number>) both puts golden-spiral on screen and pulls monitor
+  # focus onto the ultrawide as a side effect, since a workspace only ever
+  # lives on one monitor. Confirmed via `hyprctl eval`: forced focus onto the
+  # portrait monitor's workspace 11 first, then this moved both the active
+  # workspace and the focused monitor back in one call.
+  if confirm "Start every session on golden-spiral's workspace (10, on the main ultrawide), fixing the launcher/menu opening on the portrait monitor right after login?"; then
+    require_line "$HYPR_DIR/autostart.lua" 'o.exec_on_start([[hyprctl eval '"'"'hl.dispatch(hl.dsp.focus({ workspace = "10" }))'"'"']])'
+  else
+    say "skipped forcing the startup workspace"
+  fi
+
   # shakir.workspaces: a clone of Omarchy's built-in workspaces bar widget
   # (the id itself is personal, hence -p only) that always shows a spiral
   # icon for workspace 10, where golden-spiral lives instead of a plain

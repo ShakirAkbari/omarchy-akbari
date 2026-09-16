@@ -19,6 +19,27 @@
   unlike the golden-spiral icon's boxed square, then follows the normal
   occupied/focused dimming rule (unlike 10, which stays bright regardless
   since golden-spiral/chronobar keeps it permanently occupied).
+- `-p`/`--personal`: `install.sh` now offers to start every session on
+  golden-spiral's workspace (10, on the main ultrawide) via
+  `~/.config/hypr/autostart.lua` (`o.exec_on_start`). Monitors attach
+  asynchronously at boot, and whichever one attaches last tends to end up as
+  Hyprland's initially focused monitor regardless of the `workspace_rule`
+  `default` settings above (those pick which workspace shows on a monitor,
+  not which monitor holds keyboard/cursor focus, and don't force a workspace
+  switch on an already-running session); since the portrait monitor is
+  declared second in `monitors.lua.personal`, it was winning that race, so
+  the session could start on whatever workspace instead of golden-spiral,
+  and anything that opens on "the active monitor" (the Spotlight launcher
+  included) landed on the portrait monitor right after login. This build of
+  Hyprland (Omarchy's Lua config layer) doesn't take plain `hyprctl dispatch
+  <dispatcher> <args>`; dispatchers are Lua calls under `hl.dsp.*` run via
+  `hl.dispatch(...)`. Switching straight to workspace 10
+  (`hl.dispatch(hl.dsp.focus({ workspace = "10" }))`, the same call
+  `bindings.lua` uses for SUPER + `<number>`) both puts golden-spiral on
+  screen and pulls monitor focus onto the ultrawide as a side effect, since a
+  workspace only ever lives on one monitor. Confirmed via `hyprctl eval`:
+  forced focus onto the portrait monitor's workspace 11 first, then this
+  moved both the active workspace and the focused monitor back in one call.
 - `-p`/`--personal`: new `bin/plymouth-theme-sync`, installed to
   `~/.local/bin/`, recolors the Plymouth boot/unlock screen (and SDDM's
   login theme) to match a given Omarchy theme, or whichever theme is
