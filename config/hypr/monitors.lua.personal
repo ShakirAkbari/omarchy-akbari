@@ -27,3 +27,15 @@ hl.monitor({ output = "desc:Dell Inc. DELL U2211H", mode = "1920x1080@60", posit
 -- "workspace" key) always shows on the main ultrawide at session start,
 -- instead of landing on whatever workspace Hyprland last remembered.
 hl.workspace_rule({ workspace = "10", monitor = "desc:Microstep MSI MAG401QR", default = true })
+
+-- Workspace 1 is pinned to the main ultrawide too, so it stays that
+-- monitor's normal home workspace and never gets claimed by the portrait
+-- monitor below.
+hl.workspace_rule({ workspace = "1", monitor = "desc:Microstep MSI MAG401QR" })
+
+-- Portrait monitor gets its own dedicated workspace (11), out of the 1-9
+-- range used for SUPER + <number> switching, so it never mixes into the
+-- main monitor's numbered workspaces or needs a quick keybind of its own.
+-- default = true so it's always what the portrait monitor shows at
+-- session start, instead of landing on whatever Hyprland last remembered.
+hl.workspace_rule({ workspace = "11", monitor = "desc:Dell Inc. DELL U2211H", default = true })

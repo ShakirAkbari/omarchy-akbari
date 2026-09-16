@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- `-p`/`--personal`: `config/hypr/monitors.lua.personal` now pins workspace 1
+  to the main ultrawide (`hl.workspace_rule({ workspace = "1", monitor =
+  "..." })`) so it stays that monitor's normal home workspace and never gets
+  claimed by the portrait monitor below, and gives the portrait monitor
+  (Dell U2211H) its own dedicated workspace 11, outside the 1-9 range used
+  for SUPER + `<number>` switching, as its default so it's always what's
+  showing there at session start instead of whatever Hyprland last
+  remembered.
+- `shakir.workspaces`: always shows workspace 11 (the portrait monitor's
+  dedicated workspace) the same way as workspace 10 (golden-spiral), since
+  nothing keeps either in Hyprland's live workspace list while unoccupied.
+  Shows a monitor-on-a-stand glyph instead of the number (tall screen,
+  narrow neck with a hinge dot, flat base, all square-cornered), sized to
+  fill nearly the whole button (95% of it) since it has no outer frame
+  unlike the golden-spiral icon's boxed square, then follows the normal
+  occupied/focused dimming rule (unlike 10, which stays bright regardless
+  since golden-spiral/chronobar keeps it permanently occupied).
 - `-p`/`--personal`: new `bin/plymouth-theme-sync`, installed to
   `~/.local/bin/`, recolors the Plymouth boot/unlock screen (and SDDM's
   login theme) to match a given Omarchy theme, or whichever theme is

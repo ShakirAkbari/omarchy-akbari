@@ -18,15 +18,16 @@ BarWidget {
   }
 
   function workspaceIds() {
-    // 10 (golden-spiral) is always shown even when it doesn't currently
-    // "exist" in Hyprland's workspace list (nothing keeps it populated now
-    // that the bar is a separate layer-shell dock, not a tiled window on it).
-    var ids = [1, 2, 3, 4, 5, 10]
+    // 10 (golden-spiral) and 11 (portrait monitor) are always shown even
+    // when they don't currently "exist" in Hyprland's workspace list
+    // (nothing keeps them populated now that the bar is a separate
+    // layer-shell dock, not a tiled window on either monitor).
+    var ids = [1, 2, 3, 4, 5, 10, 11]
     var values = Hyprland.workspaces.values
 
     for (var i = 0; i < values.length; i++) {
       var id = values[i].id
-      if (id > 0 && id <= 10 && ids.indexOf(id) === -1) ids.push(id)
+      if (id > 0 && id <= 11 && ids.indexOf(id) === -1) ids.push(id)
     }
 
     ids.sort(function(left, right) { return left - right })
@@ -63,11 +64,13 @@ BarWidget {
 
         bar: root.bar
         text: focused ? "\uDB85\uDCFB" : String(modelData)
-        labelVisible: modelData !== 10
+        labelVisible: modelData !== 10 && modelData !== 11
         // Workspace 10 (golden-spiral) always shows the spiral icon rather
         // than swapping to the focused checkmark; it signals selection by
         // brightening instead, since it's occupied (by chronobar) whether
-        // or not it's the active workspace.
+        // or not it's the active workspace. Workspace 11 (portrait monitor)
+        // shows a monitor icon the same way, but follows the normal
+        // occupied/focused dimming since nothing keeps it permanently busy.
         opacity: modelData === 10 ? (focused ? 1 : 0.5) : (occupied || focused ? 1 : 0.5)
         horizontalMargin: 6
         verticalPadding: 6
@@ -143,6 +146,67 @@ BarWidget {
             var boxSize = width - boxLine
             ctx.lineWidth = boxLine
             ctx.strokeRect(boxLine / 2, boxLine / 2, boxSize, boxSize)
+          }
+        }
+
+        // Portrait monitor workspace icon: a monitor-on-a-stand glyph
+        // (tall screen, narrow neck with a hinge dot, flat base), modeled
+        // on a standard "display" icon so it reads at a glance rather than
+        // needing to be puzzled out. No outer frame, unlike the
+        // golden-spiral icon above: a plain display glyph already reads as
+        // an icon on its own, and a frame around it just looked like a
+        // second, smaller square nested in the button.
+        Canvas {
+          id: portraitIcon
+          visible: modelData === 11
+          anchors.centerIn: parent
+          width: Math.min(parent.width, parent.height) * 0.95
+          height: width
+
+          readonly property color strokeColor: parent.foreground
+
+          onStrokeColorChanged: requestPaint()
+          onWidthChanged: requestPaint()
+          Component.onCompleted: requestPaint()
+
+          onPaint: {
+            var ctx = getContext("2d")
+            ctx.reset()
+            ctx.clearRect(0, 0, width, height)
+            ctx.strokeStyle = portraitIcon.strokeColor
+            ctx.fillStyle = portraitIcon.strokeColor
+
+            var pad = width * 0.05
+            var content = width - pad * 2
+            var strokeW = Math.max(1, width * 0.06)
+
+            var screenW = content * 0.5
+            var screenH = content * 0.75
+            var neckW = screenW * 0.4
+            var neckH = content * 0.12
+            var circleR = Math.min(neckW, neckH) * 0.3
+            var baseW = screenW * 0.85
+            var baseH = strokeW * 1.1
+
+            var totalH = screenH + neckH + baseH
+            var top = pad + (content - totalH) / 2
+            var centerX = width / 2
+
+            ctx.lineWidth = strokeW
+            ctx.strokeRect(centerX - screenW / 2, top, screenW, screenH)
+
+            var neckTop = top + screenH
+            ctx.strokeRect(centerX - neckW / 2, neckTop, neckW, neckH)
+
+            // Hinge dot, centered on the neck; thinner stroke than the
+            // screen/neck outlines so it reads as a small dot rather than
+            // blobbing into the neck's border.
+            ctx.lineWidth = Math.max(1, strokeW * 0.6)
+            ctx.beginPath()
+            ctx.arc(centerX, neckTop + neckH / 2, circleR, 0, Math.PI * 2)
+            ctx.stroke()
+
+            ctx.fillRect(centerX - baseW / 2, neckTop + neckH, baseW, baseH)
           }
         }
       }
