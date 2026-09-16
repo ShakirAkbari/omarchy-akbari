@@ -259,7 +259,16 @@ if [ -f "$REMMINA_PREF" ]; then
   fi
 fi
 
-# 8. Personal-only: monitor layout, Chromium flags, full package list -------- #
+# 8. XWayland: make the largest connected monitor the primary output -------- #
+if confirm "Install xwayland-primary-monitor into $BIN_DIR and run it at session start (fixes Steam/Proton games defaulting to a smaller or rotated secondary monitor under XWayland)?"; then
+  link "$REPO/bin/xwayland-primary-monitor" "$BIN_DIR/xwayland-primary-monitor"
+  chmod +x "$REPO/bin/xwayland-primary-monitor"
+  require_line "$HYPR_DIR/autostart.lua" 'o.exec_on_start("xwayland-primary-monitor")'
+else
+  say "skipped xwayland-primary-monitor"
+fi
+
+# 9. Personal-only: monitor layout, Chromium flags, full package list -------- #
 if [ "$PERSONAL" -eq 1 ]; then
   if confirm "Install personal monitor layout (hardcoded for the author's hardware) into $HYPR_DIR/monitors.lua?"; then
     link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"

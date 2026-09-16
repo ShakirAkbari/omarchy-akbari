@@ -1,0 +1,37 @@
+#!/bin/bash
+# Sets the connected monitor with the largest pixel area as the X11/XWayland
+# primary output. Hyprland/XWayland never pick one on their own: whichever
+# output happens to enumerate first (often just the first one physically
+# plugged in, regardless of size or orientation) ends up primary instead.
+# X11 apps that ask for "the" monitor rather than a specific one (Steam and
+# Proton games going fullscreen, for example) land there too, which is how a
+# smaller or rotated secondary monitor ends up showing a portrait, wrong
+# resolution window instead of the main display.
+#
+# XWayland starts lazily on the first X11 client, so this polls for it
+# rather than assuming it is already up when called from autostart.
+set -euo pipefail
+
+for _ in $(seq 1 30); do
+  xrandr --query >/dev/null 2>&1 && break
+  sleep 0.5
+done
+
+biggest=""
+biggest_area=0
+while read -r name width height; do
+  area=$((width * height))
+  if [ "$area" -gt "$biggest_area" ]; then
+    biggest="$name"
+    biggest_area="$area"
+  fi
+done < <(xrandr --query | awk '
+  / connected/ && match($0, /[0-9]+x[0-9]+\+[0-9]+\+[0-9]+/) {
+    split(substr($0, RSTART, RLENGTH), g, /[x+]/)
+    print $1, g[1], g[2]
+  }
+')
+
+if [ -n "$biggest" ]; then
+  xrandr --output "$biggest" --primary
+fi

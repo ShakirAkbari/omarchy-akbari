@@ -32,6 +32,9 @@ boot menu that actually shows up and can chainload Windows.
 |                                       remmina.pref (new RDP       |
 |                                       connections default to      |
 |                                       sound=local, if present)    |
+|  xwayland-primary-monitor     ---->  ~/.local/bin/, wired into    |
+|                                       autostart.lua               |
+|                                       (o.exec_on_start)           |
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
@@ -57,7 +60,8 @@ cd ~/Projects/omarchy-shakir
 
 It asks a yes/no question before each step (keybindings, Spotify keys,
 hypr-goldenspiral, numlock, Limine, Remmina's Host key, Remmina's audio
-redirect default, and each personal-only piece), so you can decline
+redirect default, xwayland-primary-monitor, and each personal-only piece),
+so you can decline
 anything you don't want on a given run. Piped in with no terminal attached
 (`curl ... | bash`), every question defaults to no.
 
@@ -84,6 +88,17 @@ redirecting remote audio to this computer. It only changes the default for
 connections created from then on, not any `.remmina` profile that already
 exists. Same caveat as the Host key: quit Remmina first, or it clobbers the
 change on exit.
+
+Hyprland and XWayland never designate a primary monitor on their own: X11
+apps that ask for "the" monitor instead of a specific one just get whichever
+output happened to enumerate first, size and orientation aside. That's how a
+Steam/Proton game in fullscreen can land on a small or 90 degree rotated
+secondary monitor showing a portrait window, instead of the main display.
+install.sh offers to install `xwayland-primary-monitor`, a script that picks
+the connected output with the largest pixel area and sets it as the X11
+primary, wired into `~/.config/hypr/autostart.lua` so it reruns (and thus
+persists) every session, since XWayland forgets this setting on every
+restart.
 
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
 monitor layout, Chromium flags enabling NVIDIA hardware video decode, and my
@@ -122,8 +137,11 @@ A few things it won't do for you:
 
 - `hardwareVVizard` (a live-metrics wallpaper) is a separate, less-finished
   project and is intentionally not part of this repo.
-- `autostart.lua`, `input.lua`, and `hyprland.lua`'s body are left as-is,
-  beyond adding the one `require("hypr.goldenspiral")` line if it's missing.
+- `input.lua` and `hyprland.lua`'s body are left as-is, beyond adding the
+  one `require("hypr.goldenspiral")` line if it's missing.
+  `autostart.lua` is left as-is too, beyond adding the one
+  `o.exec_on_start("xwayland-primary-monitor")` line if you confirm that
+  step.
 - Anything not listed in the diagram above. This installs config, not a
   full system image.
 

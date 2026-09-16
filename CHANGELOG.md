@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- `install.sh` now offers to install `bin/xwayland-primary-monitor` into
+  `~/.local/bin/` and wire it into `~/.config/hypr/autostart.lua`
+  (`o.exec_on_start`). Hyprland/XWayland never pick a primary monitor on
+  their own, so X11 apps that ask for "the" monitor rather than a specific
+  one (Steam/Proton games going fullscreen) can land on whichever output
+  happens to enumerate first, regardless of size or orientation, which is
+  how a fullscreen game ended up on a rotated secondary monitor instead of
+  the main ultrawide. The script waits for XWayland to come up (it starts
+  lazily, on first X11 client), then sets whichever connected output has
+  the largest pixel area as primary. Runs once per session via autostart so
+  it survives reboots, since XWayland does not remember the setting across
+  restarts. `uninstall.sh` mirrors this: removes the symlink and the
+  autostart line, only if both are still present.
 - `install.sh` now offers to default new Remmina RDP connections to
   `sound=local` in `~/.config/remmina/remmina.pref`'s `[remmina]` section,
   instead of Remmina's own default of `sound=off`. Remote audio then

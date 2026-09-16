@@ -24,8 +24,9 @@ usage() {
 Usage: uninstall.sh [-h|--help]
 
 Asks before removing each piece install.sh installed: keybindings, Spotify
-keys, hypr-goldenspiral, numlock, the Limine Windows entry, and (if present)
-the personal-only monitor layout, Chromium flags, and package list.
+keys, hypr-goldenspiral, numlock, the Limine Windows entry,
+xwayland-primary-monitor, and (if present) the personal-only monitor layout,
+Chromium flags, and package list.
 
   -h, --help   Show this help.
 EOF
@@ -220,7 +221,19 @@ if [ -f "$REMMINA_PREF" ] && grep -qF "sound=local" "$REMMINA_PREF"; then
   fi
 fi
 
-# 8. Personal-only: monitor layout, Chromium flags, package list ------------- #
+# 8. xwayland-primary-monitor ------------------------------------------------ #
+if [ -L "$BIN_DIR/xwayland-primary-monitor" ]; then
+  if confirm "Remove xwayland-primary-monitor from $BIN_DIR and its autostart line from $HYPR_DIR/autostart.lua?"; then
+    unlink_ours "$REPO/bin/xwayland-primary-monitor" "$BIN_DIR/xwayland-primary-monitor"
+    remove_line "$HYPR_DIR/autostart.lua" 'o.exec_on_start("xwayland-primary-monitor")'
+  else
+    say "left xwayland-primary-monitor in place"
+  fi
+else
+  say "xwayland-primary-monitor not installed, nothing to do"
+fi
+
+# 9. Personal-only: monitor layout, Chromium flags, package list ------------- #
 if [ -L "$HYPR_DIR/monitors.lua" ]; then
   if confirm "Remove the personal monitor layout from $HYPR_DIR/monitors.lua?"; then
     unlink_ours "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"
