@@ -40,7 +40,7 @@
   workspace only ever lives on one monitor. Confirmed via `hyprctl eval`:
   forced focus onto the portrait monitor's workspace 11 first, then this
   moved both the active workspace and the focused monitor back in one call.
-- `-p`/`--personal`: new `bin/plymouth-theme-sync`, installed to
+- New `bin/plymouth-theme-sync`, installed to
   `~/.local/bin/`, recolors the Plymouth boot/unlock screen (and SDDM's
   login theme) to match a given Omarchy theme, or whichever theme is
   currently selected if none is given (`~/.local/state/omarchy/current/theme.name`,
@@ -56,7 +56,9 @@
   stay theme-agnostic, and the password field repositioned to sit under the
   wordmark. Inserting them is one-time (backed up once to
   `omarchy.script.bak.omarchy-shakir`), but recoloring them happens on every
-  run. `install.sh -p` runs it once, and can also install it as a
+  run. `install.sh` runs it once (not personal-only: the recolor just
+  follows whichever Omarchy theme is already selected, nothing hardware- or
+  author-specific), and can also install it as a
   `theme-set` hook (`omarchy hook install theme-set`) so it reruns
   automatically after every future `omarchy theme set`; the hook only
   proceeds unattended when sudo can go non-interactive (a still-warm

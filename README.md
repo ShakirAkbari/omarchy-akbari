@@ -35,6 +35,11 @@ boot menu that actually shows up and can chainload Windows.
 |  xwayland-primary-monitor     ---->  ~/.local/bin/, wired into    |
 |                                       autostart.lua               |
 |                                       (o.exec_on_start)           |
+|  plymouth-theme-sync           ---->  ~/.local/bin/, patches       |
+|                                       /usr/share/plymouth/themes/  |
+|                                       omarchy/omarchy.script       |
+|                                       (backed up), optionally a    |
+|                                       theme-set hook               |
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
@@ -46,11 +51,6 @@ boot menu that actually shows up and can chainload Windows.
 |                                       added to shell.json's        |
 |                                       bar layout (right section)  |
 |    chromium-flags.conf      ---->  ~/.config/chromium-flags.conf |
-|    plymouth-theme-sync        ---->  ~/.local/bin/, patches       |
-|                                       /usr/share/plymouth/themes/  |
-|                                       omarchy/omarchy.script       |
-|                                       (backed up), optionally a    |
-|                                       theme-set hook               |
 |    packages-personal.txt      ---->  omarchy pkg add             |
 +-----------------------------------------------------------------+
 ```
@@ -64,9 +64,9 @@ cd ~/Projects/omarchy-shakir
 ```
 
 It asks a yes/no question before each step (keybindings, Spotify keys,
-hypr-goldenspiral, numlock, Limine, Remmina's Host key, Remmina's audio
-redirect default, xwayland-primary-monitor, and each personal-only piece),
-so you can decline
+hypr-goldenspiral, numlock, Limine, fix Right Ctrl in Remmina (remap host
+key), Remmina's audio redirect default, xwayland-primary-monitor, Plymouth
+boot screen theming, and each personal-only piece), so you can decline
 anything you don't want on a given run. Piped in with no terminal attached
 (`curl ... | bash`), every question defaults to no.
 
@@ -105,13 +105,18 @@ primary, wired into `~/.config/hypr/autostart.lua` so it reruns (and thus
 persists) every session, since XWayland forgets this setting on every
 restart.
 
+install.sh also offers to recolor the Plymouth boot/unlock screen (and
+SDDM's login theme) to match whichever Omarchy theme is currently selected,
+plus an OMARCHY wordmark and a small signature watermark, optionally kept in
+sync automatically on every future theme switch via a hook. See
+[Why plymouth-theme-sync patches the script directly, and how it stays
+synced](#why-plymouth-theme-sync-patches-the-script-directly-and-how-it-stays-synced)
+below for details. Not personal-only: this benefits anyone running Omarchy.
+
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
-monitor layout, Chromium flags enabling NVIDIA hardware video decode, a
-Plymouth boot screen recolored to match whichever theme is currently selected
-plus an OMARCHY wordmark and a small signature watermark (optionally kept in
-sync automatically on every future theme switch, via a hook), and my full
-extra package list (gaming, virtualization, NVIDIA drivers, work apps). Skip
-it everywhere else.
+monitor layout, Chromium flags enabling NVIDIA hardware video decode, and my
+full extra package list (gaming, virtualization, NVIDIA drivers, work apps).
+Skip it everywhere else.
 
 ```sh
 ./install.sh --personal
@@ -233,7 +238,7 @@ repaints both to the current sampled color, so a later theme switch updates
 them the same way it already updates the icon, lock, entry, and bullet
 images.
 
-`install.sh -p` runs `plymouth-theme-sync` once, and optionally installs it
+`install.sh` runs `plymouth-theme-sync` once, and optionally installs it
 as a `theme-set` hook via `omarchy hook install theme-set` (Omarchy runs
 every script under `~/.config/omarchy/hooks/theme-set.d/` after `omarchy
 theme set`, passing the new theme's slug as `$1`), so it reruns on its own
@@ -250,8 +255,8 @@ hanging on a prompt nothing can answer.
 `/usr/share/plymouth/themes/omarchy/omarchy.script` is owned by the
 `omarchy-settings` package, so re-running `omarchy plymouth set*` yourself,
 or an `omarchy update` that touches that package, overwrites the recolor,
-wordmark, and watermark alike; re-run `plymouth-theme-sync` (or
-`install.sh -p`) if the boot screen reverts to stock Omarchy branding.
+wordmark, and watermark alike; re-run `plymouth-theme-sync` (or `install.sh`)
+if the boot screen reverts to stock Omarchy branding.
 
 ## Why the Limine step asks before writing
 

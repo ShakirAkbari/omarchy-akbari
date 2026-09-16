@@ -226,10 +226,10 @@ else
   say "skipped Limine timeout"
 fi
 
-# 6. Remmina: free up Right Ctrl as a Host key -------------------------------- #
+# 6. Fix Right Ctrl in Remmina (remap host key) ------------------------------ #
 REMMINA_PREF="$CONFIG_DIR/remmina/remmina.pref"
 if [ -f "$REMMINA_PREF" ]; then
-  if confirm "Change Remmina's Host key from Right Ctrl to Scroll Lock in $REMMINA_PREF (Right Ctrl as Host key swallows Ctrl+Shift+Arrow and other right-Ctrl combos before they reach the remote session)?"; then
+  if confirm "Fix Right Ctrl in Remmina (remap host key from Right Ctrl to Scroll Lock in $REMMINA_PREF; Right Ctrl as Host key swallows Ctrl+Shift+Arrow and other right-Ctrl combos before they reach the remote session)?"; then
     if pgrep -x remmina >/dev/null 2>&1; then
       warn "Remmina is running and rewrites this file on exit, which would undo this; quit Remmina (check the tray, not just the window) and re-run"
     else
@@ -268,7 +268,42 @@ else
   say "skipped xwayland-primary-monitor"
 fi
 
-# 9. Personal-only: monitor layout, Chromium flags, full package list -------- #
+# 9. Plymouth boot/unlock screen: matches the theme, plus a signature ------- #
+# Not personal-only: Plymouth theming has nothing to do with author-specific
+# hardware, it just recolors whichever Omarchy theme is currently selected,
+# so anyone running Omarchy benefits.
+#
+# Whichever Omarchy theme is currently selected (the last one `omarchy
+# theme set` applied), read straight from Omarchy's own state file rather
+# than hardcoded, purely to word the prompt below; bin/plymouth-theme-sync
+# does its own detection (with the same stock-look fallback) either way.
+THEME_NAME_FILE="$HOME/.local/state/omarchy/current/theme.name"
+if [ -s "$THEME_NAME_FILE" ]; then
+  PLYMOUTH_THEME="$(cat "$THEME_NAME_FILE")"
+  PLYMOUTH_PROMPT="match the current theme ($PLYMOUTH_THEME)"
+else
+  PLYMOUTH_THEME=""
+  PLYMOUTH_PROMPT="Omarchy's stock look (no current theme detected)"
+fi
+if confirm "Recolor the Plymouth boot/unlock screen to $PLYMOUTH_PROMPT, add an OMARCHY wordmark under the icon (themed recolor replaces Omarchy's own logo.png, which is the OMARCHY wordmark itself, with the theme's icon-only unlock.png), and a small '(w/ Shakir's postscripts)' watermark in its corner (needs sudo, rebuilds the initramfs)?"; then
+  mkdir -p "$BIN_DIR"
+  link "$REPO/bin/plymouth-theme-sync" "$BIN_DIR/plymouth-theme-sync"
+  chmod +x "$REPO/bin/plymouth-theme-sync"
+  "$BIN_DIR/plymouth-theme-sync" "$PLYMOUTH_THEME"
+  warn "/usr/share/plymouth/themes/omarchy/omarchy.script is owned by omarchy-settings; omarchy plymouth set/set-by-theme, or an omarchy update that touches that package, overwrites the recolor, wordmark, and watermark alike, re-run plymouth-theme-sync if so"
+
+  if confirm "Also auto-sync the boot screen on every future 'omarchy theme set' (installs a theme-set hook, needs sudo again on each switch)?"; then
+    omarchy hook install theme-set "$REPO/bin/plymouth-theme-sync"
+    say "installed the theme-set hook: ~/.config/omarchy/hooks/theme-set.d/plymouth-theme-sync"
+    warn "the hook only runs unattended if sudo can go passwordless right then (a still-warm credential cache); otherwise it skips with a desktop notification telling you to run plymouth-theme-sync yourself, rather than hanging on a sudo prompt with no terminal or askpass helper to answer it"
+  else
+    say "skipped the theme-set hook; re-run plymouth-theme-sync (or install.sh -p) by hand after switching themes"
+  fi
+else
+  say "skipped Plymouth boot screen customization"
+fi
+
+# 10. Personal-only: monitor layout, Chromium flags, full package list ------- #
 if [ "$PERSONAL" -eq 1 ]; then
   if confirm "Install personal monitor layout (hardcoded for the author's hardware) into $HYPR_DIR/monitors.lua?"; then
     link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"
@@ -368,37 +403,6 @@ if [ "$PERSONAL" -eq 1 ]; then
     warn "chromium-flags.conf may get overwritten by omarchy-refresh-chromium; re-run install.sh -p if so"
   else
     say "skipped Chromium hardware video decode flags"
-  fi
-
-  # Plymouth boot/unlock screen: matches the theme, plus a signature -------- #
-  # Whichever Omarchy theme is currently selected (the last one `omarchy
-  # theme set` applied), read straight from Omarchy's own state file rather
-  # than hardcoded, purely to word the prompt below; bin/plymouth-theme-sync
-  # does its own detection (with the same stock-look fallback) either way.
-  THEME_NAME_FILE="$HOME/.local/state/omarchy/current/theme.name"
-  if [ -s "$THEME_NAME_FILE" ]; then
-    PLYMOUTH_THEME="$(cat "$THEME_NAME_FILE")"
-    PLYMOUTH_PROMPT="match the current theme ($PLYMOUTH_THEME)"
-  else
-    PLYMOUTH_THEME=""
-    PLYMOUTH_PROMPT="Omarchy's stock look (no current theme detected)"
-  fi
-  if confirm "Recolor the Plymouth boot/unlock screen to $PLYMOUTH_PROMPT, add an OMARCHY wordmark under the icon (themed recolor replaces Omarchy's own logo.png, which is the OMARCHY wordmark itself, with the theme's icon-only unlock.png), and a small '(w/ Shakir's postscripts)' watermark in its corner (needs sudo, rebuilds the initramfs)?"; then
-    mkdir -p "$BIN_DIR"
-    link "$REPO/bin/plymouth-theme-sync" "$BIN_DIR/plymouth-theme-sync"
-    chmod +x "$REPO/bin/plymouth-theme-sync"
-    "$BIN_DIR/plymouth-theme-sync" "$PLYMOUTH_THEME"
-    warn "/usr/share/plymouth/themes/omarchy/omarchy.script is owned by omarchy-settings; omarchy plymouth set/set-by-theme, or an omarchy update that touches that package, overwrites the recolor, wordmark, and watermark alike, re-run plymouth-theme-sync if so"
-
-    if confirm "Also auto-sync the boot screen on every future 'omarchy theme set' (installs a theme-set hook, needs sudo again on each switch)?"; then
-      omarchy hook install theme-set "$REPO/bin/plymouth-theme-sync"
-      say "installed the theme-set hook: ~/.config/omarchy/hooks/theme-set.d/plymouth-theme-sync"
-      warn "the hook only runs unattended if sudo can go passwordless right then (a still-warm credential cache); otherwise it skips with a desktop notification telling you to run plymouth-theme-sync yourself, rather than hanging on a sudo prompt with no terminal or askpass helper to answer it"
-    else
-      say "skipped the theme-set hook; re-run plymouth-theme-sync (or install.sh -p) by hand after switching themes"
-    fi
-  else
-    say "skipped Plymouth boot screen customization"
   fi
 
   if [ -f "$REPO/packages-personal.txt" ] && confirm "Install the personal package list (gaming, virtualization, NVIDIA drivers, work apps) via omarchy pkg add?"; then
