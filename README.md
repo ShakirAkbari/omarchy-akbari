@@ -28,6 +28,10 @@ boot menu that actually shows up and can chainload Windows.
 |  Remmina Host key             ---->  ~/.config/remmina/          |
 |                                       remmina.pref (Right Ctrl    |
 |                                       -> Scroll Lock, if present) |
+|  Remmina audio redirect       ---->  ~/.config/remmina/          |
+|                                       remmina.pref (new RDP       |
+|                                       connections default to      |
+|                                       sound=local, if present)    |
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
@@ -52,10 +56,10 @@ cd ~/Projects/omarchy-shakir
 ```
 
 It asks a yes/no question before each step (keybindings, Spotify keys,
-hypr-goldenspiral, numlock, Limine, Remmina's Host key, and each
-personal-only piece), so you can decline anything you don't want on a
-given run. Piped in with no terminal attached (`curl ... | bash`), every
-question defaults to no.
+hypr-goldenspiral, numlock, Limine, Remmina's Host key, Remmina's audio
+redirect default, and each personal-only piece), so you can decline
+anything you don't want on a given run. Piped in with no terminal attached
+(`curl ... | bash`), every question defaults to no.
 
 Re-running is safe and does not create duplicates: existing files it would
 overwrite get backed up next to themselves as `<file>.bak.<timestamp>`
@@ -71,6 +75,15 @@ already exists, install.sh offers to rebind the Host key to Scroll Lock
 instead, freeing Right Ctrl back up. Remmina rewrites that file on exit, so
 quit it first (including the tray icon, not just the window) or the change
 gets clobbered.
+
+Remmina's default for a new RDP connection is `sound=off`, so remote audio
+never reaches your speakers unless you turn it on per connection. install.sh
+offers to flip the default to `sound=local` in `remmina.pref`'s `[remmina]`
+section instead, so every new RDP connection you create starts out
+redirecting remote audio to this computer. It only changes the default for
+connections created from then on, not any `.remmina` profile that already
+exists. Same caveat as the Host key: quit Remmina first, or it clobbers the
+change on exit.
 
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
 monitor layout, Chromium flags enabling NVIDIA hardware video decode, and my

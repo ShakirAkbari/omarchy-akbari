@@ -241,7 +241,25 @@ if [ -f "$REMMINA_PREF" ]; then
   fi
 fi
 
-# 7. Personal-only: monitor layout, Chromium flags, full package list -------- #
+# 7. Remmina: default new RDP connections to local audio redirect ------------ #
+if [ -f "$REMMINA_PREF" ]; then
+  if confirm "Default new Remmina RDP connections to redirecting remote audio to this computer's speakers (sound=local in $REMMINA_PREF)?"; then
+    if pgrep -x remmina >/dev/null 2>&1; then
+      warn "Remmina is running and rewrites this file on exit, which would undo this; quit Remmina (check the tray, not just the window) and re-run"
+    else
+      if grep -q '^sound=' "$REMMINA_PREF"; then
+        sed -i 's/^sound=.*/sound=local/' "$REMMINA_PREF"
+      else
+        printf 'sound=local\n' >> "$REMMINA_PREF"
+      fi
+      say "set new RDP connections to default sound=local in $REMMINA_PREF"
+    fi
+  else
+    say "skipped Remmina audio redirect default"
+  fi
+fi
+
+# 8. Personal-only: monitor layout, Chromium flags, full package list -------- #
 if [ "$PERSONAL" -eq 1 ]; then
   if confirm "Install personal monitor layout (hardcoded for the author's hardware) into $HYPR_DIR/monitors.lua?"; then
     link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"

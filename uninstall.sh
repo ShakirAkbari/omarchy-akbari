@@ -206,7 +206,21 @@ if [ -f "$REMMINA_PREF" ] && grep -qF "hostkey=65300" "$REMMINA_PREF"; then
   fi
 fi
 
-# 7. Personal-only: monitor layout, Chromium flags, package list ------------- #
+# 7. Remmina: restore the default audio redirect setting --------------------- #
+if [ -f "$REMMINA_PREF" ] && grep -qF "sound=local" "$REMMINA_PREF"; then
+  if confirm "Restore Remmina's default new-connection audio redirect to off (Remmina's default) in $REMMINA_PREF?"; then
+    if pgrep -x remmina >/dev/null 2>&1; then
+      warn "Remmina is running and rewrites this file on exit, which would undo this; quit Remmina (check the tray, not just the window) and re-run"
+    else
+      sed -i 's/^sound=.*/sound=off/' "$REMMINA_PREF"
+      say "restored Remmina's default new-connection audio redirect to off in $REMMINA_PREF"
+    fi
+  else
+    say "left Remmina's audio redirect default as is"
+  fi
+fi
+
+# 8. Personal-only: monitor layout, Chromium flags, package list ------------- #
 if [ -L "$HYPR_DIR/monitors.lua" ]; then
   if confirm "Remove the personal monitor layout from $HYPR_DIR/monitors.lua?"; then
     unlink_ours "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"

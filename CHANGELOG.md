@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- `install.sh` now offers to default new Remmina RDP connections to
+  `sound=local` in `~/.config/remmina/remmina.pref`'s `[remmina]` section,
+  instead of Remmina's own default of `sound=off`. Remote audio then
+  redirects to this computer's speakers out of the box for any RDP
+  connection created afterward, without having to flip it per connection.
+  `uninstall.sh` mirrors this, restoring `sound=off`, but only when it finds
+  `sound=local` still set. Both scripts check for a running Remmina first,
+  since it rewrites this file on exit and would otherwise clobber the change.
 - `install.sh` now offers to rebind Remmina's Host key from Right Ctrl to
   Scroll Lock in `~/.config/remmina/remmina.pref`, if that file exists.
   Right Ctrl as the Host key gets grabbed locally for Remmina's own
