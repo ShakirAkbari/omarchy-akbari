@@ -26,7 +26,8 @@ Usage: uninstall.sh [-h|--help]
 Asks before removing each piece install.sh installed: keybindings, Spotify
 keys, hypr-goldenspiral, numlock, the Limine Windows entry,
 xwayland-primary-monitor, and (if present) the personal-only monitor layout,
-Chromium flags, and package list.
+Plymouth boot screen theming (and its theme-set hook), Chromium flags, and
+package list.
 
   -h, --help   Show this help.
 EOF
@@ -312,10 +313,32 @@ else
   say "Chromium hardware video decode flags not installed, nothing to do"
 fi
 
+PLYMOUTH_HOOK="$CONFIG_DIR/omarchy/hooks/theme-set.d/plymouth-theme-sync"
+if [ -f "$PLYMOUTH_HOOK" ]; then
+  if confirm "Remove the theme-set hook that auto-syncs the Plymouth boot screen on every theme switch?"; then
+    rm -f "$PLYMOUTH_HOOK"
+    say "removed $PLYMOUTH_HOOK"
+  else
+    say "left the theme-set hook in place"
+  fi
+else
+  say "theme-set hook not installed, nothing to do"
+fi
+
+if [ -L "$BIN_DIR/plymouth-theme-sync" ]; then
+  if confirm "Remove plymouth-theme-sync from $BIN_DIR?"; then
+    unlink_ours "$REPO/bin/plymouth-theme-sync" "$BIN_DIR/plymouth-theme-sync"
+  else
+    say "left plymouth-theme-sync in place"
+  fi
+else
+  say "plymouth-theme-sync not installed, nothing to do"
+fi
+
 PLYMOUTH_SCRIPT=/usr/share/plymouth/themes/omarchy/omarchy.script
 PLYMOUTH_SCRIPT_BAK="$PLYMOUTH_SCRIPT.bak.omarchy-shakir"
 if [ -f "$PLYMOUTH_SCRIPT_BAK" ]; then
-  if confirm "Restore the Plymouth boot/unlock screen from before the theme recolor and watermark (needs sudo, rebuilds the initramfs)?"; then
+  if confirm "Restore the Plymouth boot/unlock screen from before the theme recolor, wordmark, and watermark (needs sudo, rebuilds the initramfs)?"; then
     sudo mv "$PLYMOUTH_SCRIPT_BAK" "$PLYMOUTH_SCRIPT"
     say "restored $PLYMOUTH_SCRIPT from $PLYMOUTH_SCRIPT_BAK"
     if command -v limine-mkinitcpio >/dev/null 2>&1; then
@@ -325,10 +348,10 @@ if [ -f "$PLYMOUTH_SCRIPT_BAK" ]; then
     fi
     warn "SDDM's login theme recolor is left as is; there's no backup of Omarchy's stock SDDM theme to restore it from"
   else
-    say "left the Plymouth boot screen watermark in place"
+    say "left the Plymouth boot screen wordmark and watermark in place"
   fi
 else
-  say "Plymouth boot screen watermark not installed, nothing to do"
+  say "Plymouth boot screen wordmark and watermark not installed, nothing to do"
 fi
 
 if [ -f "$REPO/packages-personal.txt" ] && command -v omarchy >/dev/null 2>&1; then

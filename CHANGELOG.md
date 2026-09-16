@@ -2,22 +2,33 @@
 
 ## Unreleased
 
-- `-p`/`--personal`: `install.sh` now offers to recolor the Plymouth
-  boot/unlock screen to match whichever theme is currently selected (read
-  from `~/.local/state/omarchy/current/theme.name` via
-  `omarchy plymouth set-by-theme`, which also recolors SDDM's login theme;
-  falls back to `omarchy plymouth reset`, Omarchy's stock look, if that
-  file is unreadable) and add a small
-  `(w/ Shakir's postscripts)` watermark in its bottom-right corner. There's
-  no Omarchy-supported way to add extra text to that screen, so this patches
-  `/usr/share/plymouth/themes/omarchy/omarchy.script` directly (idempotent,
-  backed up once to `omarchy.script.bak.omarchy-shakir` before the first
-  patch), then rebuilds the initramfs. It's a one-shot recolor, not a live
-  hook, so a later `omarchy theme set` doesn't carry over until this step is
-  re-run. Gets overwritten by `omarchy plymouth set*` or an `omarchy update`
-  touching `omarchy-settings`, same caveat as the numlock SDDM config below.
-  `uninstall.sh` mirrors this, restoring the pre-patch script from the
-  backup if present.
+- `-p`/`--personal`: new `bin/plymouth-theme-sync`, installed to
+  `~/.local/bin/`, recolors the Plymouth boot/unlock screen (and SDDM's
+  login theme) to match a given Omarchy theme, or whichever theme is
+  currently selected if none is given (`~/.local/state/omarchy/current/theme.name`,
+  falling back to `omarchy plymouth reset`, Omarchy's stock look, if that's
+  unreadable), via `omarchy plymouth set-by-theme`. A themed recolor swaps
+  Omarchy's own `logo.png`, the pixel-art OMARCHY wordmark, for the theme's
+  icon-only `unlock.png`; since there's no Omarchy-supported way to add
+  extra text back to that screen, this also patches
+  `/usr/share/plymouth/themes/omarchy/omarchy.script` directly: an OMARCHY
+  `Image.Text` wordmark centered under the icon, and a small
+  `(w/ Shakir's postscripts)` watermark in the bottom-right corner, both in
+  a color sampled straight back out of a freshly recolored asset so they
+  stay theme-agnostic, and the password field repositioned to sit under the
+  wordmark. Inserting them is one-time (backed up once to
+  `omarchy.script.bak.omarchy-shakir`), but recoloring them happens on every
+  run. `install.sh -p` runs it once, and can also install it as a
+  `theme-set` hook (`omarchy hook install theme-set`) so it reruns
+  automatically after every future `omarchy theme set`; the hook only
+  proceeds unattended when sudo can go non-interactive (a still-warm
+  credential cache), since it has no terminal or askpass/polkit agent to
+  answer a password prompt otherwise, and bails with a desktop notification
+  instead of hanging when it can't. Everything here gets overwritten by a
+  manual `omarchy plymouth set*` or an `omarchy update` touching
+  `omarchy-settings`, same caveat as the numlock SDDM config below.
+  `uninstall.sh` mirrors this: removes the hook, the `~/.local/bin/` symlink,
+  and restores the pre-patch script from its backup if present.
 - `install.sh` now offers to install `bin/xwayland-primary-monitor` into
   `~/.local/bin/` and wire it into `~/.config/hypr/autostart.lua`
   (`o.exec_on_start`). Hyprland/XWayland never pick a primary monitor on

@@ -46,9 +46,11 @@ boot menu that actually shows up and can chainload Windows.
 |                                       added to shell.json's        |
 |                                       bar layout (right section)  |
 |    chromium-flags.conf      ---->  ~/.config/chromium-flags.conf |
-|    Plymouth boot screen       ---->  /usr/share/plymouth/themes/  |
+|    plymouth-theme-sync        ---->  ~/.local/bin/, patches       |
+|                                       /usr/share/plymouth/themes/  |
 |                                       omarchy/omarchy.script       |
-|                                       (patched, backed up)         |
+|                                       (backed up), optionally a    |
+|                                       theme-set hook               |
 |    packages-personal.txt      ---->  omarchy pkg add             |
 +-----------------------------------------------------------------+
 ```
@@ -106,8 +108,10 @@ restart.
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
 monitor layout, Chromium flags enabling NVIDIA hardware video decode, a
 Plymouth boot screen recolored to match whichever theme is currently selected
-plus a small signature watermark, and my full extra package list (gaming,
-virtualization, NVIDIA drivers, work apps). Skip it everywhere else.
+plus an OMARCHY wordmark and a small signature watermark (optionally kept in
+sync automatically on every future theme switch, via a hook), and my full
+extra package list (gaming, virtualization, NVIDIA drivers, work apps). Skip
+it everywhere else.
 
 ```sh
 ./install.sh --personal
@@ -201,29 +205,53 @@ from a cold start, this needs a full Chromium quit and relaunch to take
 effect, and running `omarchy-refresh-chromium` will overwrite it back to the
 Omarchy default (re-run `install.sh -p` to restore it).
 
-## Why the Plymouth watermark patches the script directly
+## Why plymouth-theme-sync patches the script directly, and how it stays synced
 
 Omarchy's own `omarchy plymouth set` / `set-by-theme` commands only ever
-touch colors and the logo image, there's no supported way to add extra text
-to the boot/unlock screen. So this step reads the currently selected theme
-straight from `~/.local/state/omarchy/current/theme.name` and calls
-`omarchy plymouth set-by-theme` with it (for the theme recolor, which also
-carries over to SDDM's login theme); if that file is missing or empty, it
-falls back to `omarchy plymouth reset` instead, Omarchy's own stock
-Plymouth/SDDM look, rather than guessing a theme. Either way it then patches
-the installed
-`/usr/share/plymouth/themes/omarchy/omarchy.script` directly: it inserts a
-small `Image.Text` sprite right after the main logo sprite is created,
-anchored to the bottom-right corner. The patch is idempotent (checks for its
-own marker text first) and the pre-patch script is backed up once to
-`omarchy.script.bak.omarchy-shakir`. That file is owned by the
+touch colors and the logo image; a themed recolor actually swaps out
+Omarchy's `logo.png` (the pixel-art OMARCHY wordmark itself) for the theme's
+own icon-only `unlock.png`, and there's no supported way to add extra text
+back to that screen. `bin/plymouth-theme-sync` (installed to
+`~/.local/bin/`) handles both: it calls `omarchy plymouth set-by-theme` with
+either the theme slug it's given, or (with none) whichever theme is
+currently selected, read from `~/.local/state/omarchy/current/theme.name`;
+missing or empty, it falls back to `omarchy plymouth reset` instead,
+Omarchy's own stock Plymouth/SDDM look, rather than guessing a theme. It then
+patches the installed
+`/usr/share/plymouth/themes/omarchy/omarchy.script` directly: an OMARCHY
+`Image.Text` wordmark centered under the icon (in place of the one themed
+recolor swapped out), and a small signature watermark in the bottom-right
+corner, in a color sampled straight back out of a freshly recolored asset
+(`bullet.png`) rather than re-derived separately, so both always match
+whatever the recolor above just did, theme-agnostically. The password field
+(and everything positioned relative to it: lock icon, bullets, progress bar)
+shifts down to sit under the wordmark instead of directly under the icon.
+Inserting the wordmark and watermark is one-time (each guarded on its own
+marker text, and the pre-patch script backed up once to
+`omarchy.script.bak.omarchy-shakir`), but recoloring them is not: every run
+repaints both to the current sampled color, so a later theme switch updates
+them the same way it already updates the icon, lock, entry, and bullet
+images.
+
+`install.sh -p` runs `plymouth-theme-sync` once, and optionally installs it
+as a `theme-set` hook via `omarchy hook install theme-set` (Omarchy runs
+every script under `~/.config/omarchy/hooks/theme-set.d/` after `omarchy
+theme set`, passing the new theme's slug as `$1`), so it reruns on its own
+after every future theme switch, receiving exactly the argument
+`plymouth-theme-sync` already expects. A hook has no terminal to answer a
+sudo password prompt (the theme switcher itself is a graphical, non-terminal
+trigger), and this setup has no askpass helper or polkit agent configured
+either, so `plymouth-theme-sync` only proceeds unattended when sudo can
+already go non-interactively (a still-warm credential cache, `sudo -n true`);
+otherwise it bails immediately with a desktop notification (if
+`notify-send` is available) telling you to run it yourself, rather than
+hanging on a prompt nothing can answer.
+
+`/usr/share/plymouth/themes/omarchy/omarchy.script` is owned by the
 `omarchy-settings` package, so re-running `omarchy plymouth set*` yourself,
-or an `omarchy update` that touches that package, overwrites both the
-recolor and the watermark; re-run `install.sh -p` if the boot screen reverts
-to stock Omarchy branding. This is also a one-shot recolor rather than a live
-hook, so switching themes afterward with `omarchy theme set` leaves the boot
-screen on whichever theme was active when `install.sh -p` last ran, until you
-re-run it.
+or an `omarchy update` that touches that package, overwrites the recolor,
+wordmark, and watermark alike; re-run `plymouth-theme-sync` (or
+`install.sh -p`) if the boot screen reverts to stock Omarchy branding.
 
 ## Why the Limine step asks before writing
 

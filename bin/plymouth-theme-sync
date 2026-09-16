@@ -1,0 +1,151 @@
+#!/bin/bash
+# Recolors the Plymouth boot/unlock screen (and SDDM's login theme) to match
+# an Omarchy theme, restores the OMARCHY wordmark that a themed recolor
+# swaps out for the theme's own icon, and adds a small signature watermark.
+#
+# Shared by install.sh's Plymouth step and, once installed as a theme-set
+# hook (omarchy hook install theme-set), by every omarchy theme set
+# afterward, so switching themes keeps the boot screen in sync on its own.
+#
+# Usage: plymouth-theme-sync [theme-slug]
+#   theme-slug   Omarchy theme to apply. Defaults to whichever theme is
+#                currently selected (Omarchy's own state file), or Omarchy's
+#                stock Plymouth/SDDM look if that can't be read. This is
+#                also exactly the hook calling convention: Omarchy invokes a
+#                theme-set.d script with the new theme's slug as $1.
+set -euo pipefail
+
+say()  { printf '\033[36m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[33m !!\033[0m %s\n' "$*" >&2; }
+
+PLYMOUTH_SCRIPT=/usr/share/plymouth/themes/omarchy/omarchy.script
+THEME_NAME_FILE="$HOME/.local/state/omarchy/current/theme.name"
+
+theme="${1:-}"
+if [ -z "$theme" ] && [ -s "$THEME_NAME_FILE" ]; then
+  theme="$(cat "$THEME_NAME_FILE")"
+fi
+
+# A hook run from the theme switcher (or any other non-terminal trigger) has
+# no tty, and this setup has no askpass helper or polkit agent either, so a
+# plain sudo would just fail. Only proceed without a terminal if sudo can
+# already go non-interactively (a still-warm credential cache); otherwise
+# bail with a clear, actionable message instead of a confusing sudo error.
+if [ ! -t 0 ] && [ ! -e /dev/tty ] && ! sudo -n true 2>/dev/null; then
+  msg="Plymouth boot screen sync needs sudo and no terminal or cached credentials are available; run 'plymouth-theme-sync${theme:+ $theme}' yourself"
+  warn "$msg"
+  command -v notify-send >/dev/null 2>&1 && notify-send "Boot screen not synced" "$msg"
+  exit 1
+fi
+
+if [ -n "$theme" ]; then
+  say "recoloring Plymouth + SDDM to match $theme"
+  omarchy plymouth set-by-theme "$theme"
+else
+  say "resetting Plymouth + SDDM to Omarchy's stock look"
+  omarchy plymouth reset
+fi
+
+# Sample the actual applied text color back out of a recolored asset, rather
+# than re-deriving it from the theme's colors.toml (or Omarchy's stock
+# default) separately, so the wordmark and watermark always match whatever
+# the step above just did, theme-agnostically.
+asset_dir="$(dirname "$PLYMOUTH_SCRIPT")"
+text_hex="a9b1d6"
+if command -v magick >/dev/null 2>&1 && [ -f "$asset_dir/bullet.png" ]; then
+  bw=$(magick identify -format '%w' "$asset_dir/bullet.png")
+  bh=$(magick identify -format '%h' "$asset_dir/bullet.png")
+  sampled_hex=$(magick "$asset_dir/bullet.png" -format "%[hex:p{$((bw / 2)),$((bh / 2))}]" info: 2>/dev/null | cut -c1-6)
+  [ -n "$sampled_hex" ] && text_hex="$sampled_hex"
+fi
+
+if [ -f "$PLYMOUTH_SCRIPT" ]; then
+  if ! grep -qF "wordmark.text" "$PLYMOUTH_SCRIPT" && [ ! -f "$PLYMOUTH_SCRIPT.bak.omarchy-shakir" ]; then
+    sudo cp "$PLYMOUTH_SCRIPT" "$PLYMOUTH_SCRIPT.bak.omarchy-shakir"
+    say "backed up $PLYMOUTH_SCRIPT"
+  fi
+  # No Omarchy-supported way to add extra text to this screen exists
+  # (omarchy plymouth set/set-by-theme only touch colors and the logo), so
+  # this patches the installed script directly: an OMARCHY wordmark
+  # (Image.Text) centered under the icon, in place of the wordmark that
+  # themed recolor swaps out for the theme's own icon-only unlock.png, and
+  # a small corner watermark, both in the sampled text color. entry.y (the
+  # password field, and everything positioned relative to it: lock icon,
+  # bullets, progress bar) shifts down to sit under the wordmark instead of
+  # directly under the icon. Both structural inserts are one-time (guarded
+  # on their own marker text), but the color rewrite below always reapplies,
+  # so a later theme switch updates the wordmark and watermark the same way
+  # it already updates the icon, lock, entry, and bullet images.
+  sudo /usr/bin/python3 - "$PLYMOUTH_SCRIPT" "$text_hex" <<'PY'
+import re
+import sys
+
+path, hex_color = sys.argv[1], sys.argv[2].lstrip("#")
+r = int(hex_color[0:2], 16) / 255
+g = int(hex_color[2:4], 16) / 255
+b = int(hex_color[4:6], 16) / 255
+color_args = f"{r:.3f}, {g:.3f}, {b:.3f}"
+
+logo_marker = "logo.sprite.SetOpacity(1);"
+wordmark_marker = "wordmark.sprite.SetOpacity(1);"
+old_entry_y = "entry.y = logo.sprite.GetY() + logo.image.GetHeight() + 40;"
+new_entry_y = "entry.y = wordmark.sprite.GetY() + wordmark.image.GetHeight() + 40;"
+
+wordmark_addition = f'''
+wordmark.text = "OMARCHY";
+wordmark.image = Image.Text(wordmark.text, {color_args}, 1, "Cantarell Bold 56");
+wordmark.sprite = Sprite(wordmark.image);
+wordmark.sprite.SetX(Window.GetWidth() / 2 - wordmark.image.GetWidth() / 2);
+wordmark.sprite.SetY(logo.sprite.GetY() + logo.image.GetHeight() + 20);
+wordmark.sprite.SetOpacity(1);
+'''
+
+postscript_addition = f'''
+postscript.text = "(w/ Shakir's postscripts)";
+postscript.image = Image.Text(postscript.text, {color_args}, 1, "Cantarell 7");
+postscript.sprite = Sprite(postscript.image);
+postscript.sprite.SetX(Window.GetWidth() - postscript.image.GetWidth() - 24);
+postscript.sprite.SetY(Window.GetHeight() - postscript.image.GetHeight() - 24);
+postscript.sprite.SetOpacity(1);
+'''
+
+with open(path) as f:
+    content = f.read()
+
+if logo_marker not in content:
+    sys.exit("logo marker not found, Plymouth script may have changed shape")
+
+if "wordmark.text" not in content:
+    content = content.replace(logo_marker, logo_marker + "\n" + wordmark_addition, 1)
+    if old_entry_y not in content:
+        sys.exit("entry.y marker not found, Plymouth script may have changed shape")
+    content = content.replace(old_entry_y, new_entry_y, 1)
+
+if "postscript.text" not in content:
+    anchor = wordmark_marker if wordmark_marker in content else logo_marker
+    content = content.replace(anchor, anchor + "\n" + postscript_addition, 1)
+
+content = re.sub(
+    r'wordmark\.image = Image\.Text\(wordmark\.text, [^\n]*?, 1, "Cantarell Bold 56"\);',
+    f'wordmark.image = Image.Text(wordmark.text, {color_args}, 1, "Cantarell Bold 56");',
+    content,
+)
+content = re.sub(
+    r'postscript\.image = Image\.Text\(postscript\.text, [^\n]*?, 1, "Cantarell 7"\);',
+    f'postscript.image = Image.Text(postscript.text, {color_args}, 1, "Cantarell 7");',
+    content,
+)
+
+with open(path, "w") as f:
+    f.write(content)
+PY
+  say "synced the OMARCHY wordmark and postscript watermark to $PLYMOUTH_SCRIPT"
+fi
+
+say "rebuilding the initramfs"
+if command -v limine-mkinitcpio >/dev/null 2>&1; then
+  sudo limine-mkinitcpio
+else
+  sudo mkinitcpio -P
+fi
+say "Plymouth boot screen synced to ${theme:-the stock Omarchy look}"
