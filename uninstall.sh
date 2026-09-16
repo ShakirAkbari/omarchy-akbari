@@ -312,6 +312,25 @@ else
   say "Chromium hardware video decode flags not installed, nothing to do"
 fi
 
+PLYMOUTH_SCRIPT=/usr/share/plymouth/themes/omarchy/omarchy.script
+PLYMOUTH_SCRIPT_BAK="$PLYMOUTH_SCRIPT.bak.omarchy-shakir"
+if [ -f "$PLYMOUTH_SCRIPT_BAK" ]; then
+  if confirm "Restore the Plymouth boot/unlock screen from before the theme recolor and watermark (needs sudo, rebuilds the initramfs)?"; then
+    sudo mv "$PLYMOUTH_SCRIPT_BAK" "$PLYMOUTH_SCRIPT"
+    say "restored $PLYMOUTH_SCRIPT from $PLYMOUTH_SCRIPT_BAK"
+    if command -v limine-mkinitcpio >/dev/null 2>&1; then
+      sudo limine-mkinitcpio
+    else
+      sudo mkinitcpio -P
+    fi
+    warn "SDDM's login theme recolor is left as is; there's no backup of Omarchy's stock SDDM theme to restore it from"
+  else
+    say "left the Plymouth boot screen watermark in place"
+  fi
+else
+  say "Plymouth boot screen watermark not installed, nothing to do"
+fi
+
 if [ -f "$REPO/packages-personal.txt" ] && command -v omarchy >/dev/null 2>&1; then
   warn "removing the personal package list can remove GPU drivers and other packages other software depends on"
   if confirm "Remove the personal package list (gaming, virtualization, NVIDIA drivers, work apps) via omarchy pkg drop?"; then

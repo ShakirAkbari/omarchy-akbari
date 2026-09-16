@@ -345,6 +345,77 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped Chromium hardware video decode flags"
   fi
 
+  # Plymouth boot/unlock screen: matches the theme, plus a signature -------- #
+  # Whichever Omarchy theme is currently selected (the last one `omarchy
+  # theme set` applied), read straight from Omarchy's own state file rather
+  # than hardcoded, so this follows a theme switch instead of freezing on
+  # whatever theme happened to be active the day this step was written.
+  PLYMOUTH_SCRIPT=/usr/share/plymouth/themes/omarchy/omarchy.script
+  THEME_NAME_FILE="$HOME/.local/state/omarchy/current/theme.name"
+  if [ -s "$THEME_NAME_FILE" ]; then
+    PLYMOUTH_THEME="$(cat "$THEME_NAME_FILE")"
+    PLYMOUTH_PROMPT="match the current theme ($PLYMOUTH_THEME)"
+  else
+    PLYMOUTH_THEME=""
+    PLYMOUTH_PROMPT="Omarchy's stock look (no current theme detected)"
+    warn "could not read the current theme from $THEME_NAME_FILE, falling back to Omarchy's stock Plymouth/SDDM look"
+  fi
+  if confirm "Recolor the Plymouth boot/unlock screen to $PLYMOUTH_PROMPT and add a small '(w/ Shakir's postscripts)' watermark in its corner (needs sudo, rebuilds the initramfs)?"; then
+    if [ -n "$PLYMOUTH_THEME" ]; then
+      say "recoloring Plymouth + SDDM to match $PLYMOUTH_THEME"
+      omarchy plymouth set-by-theme "$PLYMOUTH_THEME"
+    else
+      say "resetting Plymouth + SDDM to Omarchy's stock look"
+      omarchy plymouth reset
+    fi
+
+    if [ -f "$PLYMOUTH_SCRIPT" ] && ! grep -qF "postscript.text" "$PLYMOUTH_SCRIPT"; then
+      if [ ! -f "$PLYMOUTH_SCRIPT.bak.omarchy-shakir" ]; then
+        sudo cp "$PLYMOUTH_SCRIPT" "$PLYMOUTH_SCRIPT.bak.omarchy-shakir"
+        say "backed up $PLYMOUTH_SCRIPT"
+      fi
+      # No Omarchy-supported way to add extra text to this screen exists
+      # (omarchy plymouth set/set-by-theme only touch colors and the logo),
+      # so this patches the installed script directly: insert a small
+      # Image.Text sprite right after the main logo sprite is set up,
+      # anchored to the bottom-right corner in the theme's foreground color.
+      sudo /usr/bin/python3 - "$PLYMOUTH_SCRIPT" <<'PY'
+import sys
+
+path = sys.argv[1]
+marker = "logo.sprite.SetOpacity(1);"
+addition = '''
+postscript.text = "(w/ Shakir's postscripts)";
+postscript.image = Image.Text(postscript.text, 0.663, 0.694, 0.839, 1, "Cantarell 7");
+postscript.sprite = Sprite(postscript.image);
+postscript.sprite.SetX(Window.GetWidth() - postscript.image.GetWidth() - 24);
+postscript.sprite.SetY(Window.GetHeight() - postscript.image.GetHeight() - 24);
+postscript.sprite.SetOpacity(1);
+'''
+
+with open(path) as f:
+    content = f.read()
+if marker not in content:
+    sys.exit("marker not found, Plymouth script may have changed shape")
+with open(path, "w") as f:
+    f.write(content.replace(marker, marker + "\n" + addition, 1))
+PY
+      say "added the postscript watermark to $PLYMOUTH_SCRIPT"
+    else
+      say "postscript watermark already present, skipping the patch"
+    fi
+
+    if command -v limine-mkinitcpio >/dev/null 2>&1; then
+      sudo limine-mkinitcpio
+    else
+      sudo mkinitcpio -P
+    fi
+    warn "$PLYMOUTH_SCRIPT is owned by omarchy-settings; omarchy plymouth set/set-by-theme, or an omarchy update that touches that package, overwrites both the recolor and the watermark, re-run install.sh -p if so"
+    warn "this is a one-shot recolor, not a live hook; switching themes with omarchy theme set afterward leaves the boot screen as set above until you re-run install.sh -p"
+  else
+    say "skipped Plymouth boot screen customization"
+  fi
+
   if [ -f "$REPO/packages-personal.txt" ] && confirm "Install the personal package list (gaming, virtualization, NVIDIA drivers, work apps) via omarchy pkg add?"; then
     say "installing personal packages"
     mapfile -t pkgs < <(grep -vE '^\s*(#|$)' "$REPO/packages-personal.txt")

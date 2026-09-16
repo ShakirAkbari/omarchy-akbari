@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- `-p`/`--personal`: `install.sh` now offers to recolor the Plymouth
+  boot/unlock screen to match whichever theme is currently selected (read
+  from `~/.local/state/omarchy/current/theme.name` via
+  `omarchy plymouth set-by-theme`, which also recolors SDDM's login theme;
+  falls back to `omarchy plymouth reset`, Omarchy's stock look, if that
+  file is unreadable) and add a small
+  `(w/ Shakir's postscripts)` watermark in its bottom-right corner. There's
+  no Omarchy-supported way to add extra text to that screen, so this patches
+  `/usr/share/plymouth/themes/omarchy/omarchy.script` directly (idempotent,
+  backed up once to `omarchy.script.bak.omarchy-shakir` before the first
+  patch), then rebuilds the initramfs. It's a one-shot recolor, not a live
+  hook, so a later `omarchy theme set` doesn't carry over until this step is
+  re-run. Gets overwritten by `omarchy plymouth set*` or an `omarchy update`
+  touching `omarchy-settings`, same caveat as the numlock SDDM config below.
+  `uninstall.sh` mirrors this, restoring the pre-patch script from the
+  backup if present.
 - `install.sh` now offers to install `bin/xwayland-primary-monitor` into
   `~/.local/bin/` and wire it into `~/.config/hypr/autostart.lua`
   (`o.exec_on_start`). Hyprland/XWayland never pick a primary monitor on
