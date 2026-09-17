@@ -86,8 +86,14 @@ if ! command -v omarchy >/dev/null 2>&1; then
   exit 1
 fi
 
+say "This installs my personal Omarchy setup, one piece at a time."
+say "Each step below explains what it does, then asks yes/no; say no to skip it. Nothing here is silent: every change is announced as it happens, and anything it would overwrite is backed up next to itself first."
+[ "$PERSONAL" -eq 1 ] && say "Running with --personal: machine-specific steps (monitor layout, full package list) will be offered too."
+printf '\n'
+
 # 1. Keybindings and look'n'feel -------------------------------------------- #
-if confirm "Install keybindings and look'n'feel (config/hypr/bindings.lua, looknfeel.lua) into $HYPR_DIR?"; then
+say "Keybindings and look'n'feel: adds my keybindings on top of Omarchy's defaults, plus two visual tweaks: a slight overshoot on window-move animations, and blur turned on (used by the golden-spiral dock; Omarchy ships this off)."
+if confirm "Install bindings.lua and looknfeel.lua into $HYPR_DIR?"; then
   link "$REPO/config/hypr/bindings.lua" "$HYPR_DIR/bindings.lua"
   link "$REPO/config/hypr/looknfeel.lua" "$HYPR_DIR/looknfeel.lua"
 else
@@ -175,6 +181,12 @@ elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (backs it
     say "set Limine menu timeout to 5s"
   else
     say "Limine timeout already active, left as-is"
+  fi
+
+  if grep -qE '^[[:space:]]*/+linux[[:space:]]*$' "$LIMINE_CONF" 2>/dev/null; then
+    limine_backup
+    sudo sed -i -E 's|^([[:space:]]*/+)linux[[:space:]]*$|\1Arch Linux|' "$LIMINE_CONF"
+    say "renamed 'linux' kernel entries to 'Arch Linux' in the boot menu"
   fi
 
   if command -v efibootmgr >/dev/null 2>&1 && ! grep -q '^/+Windows' "$LIMINE_CONF"; then
@@ -280,24 +292,27 @@ fi
 THEME_NAME_FILE="$HOME/.local/state/omarchy/current/theme.name"
 if [ -s "$THEME_NAME_FILE" ]; then
   PLYMOUTH_THEME="$(cat "$THEME_NAME_FILE")"
-  PLYMOUTH_PROMPT="match the current theme ($PLYMOUTH_THEME)"
+  PLYMOUTH_PROMPT="$PLYMOUTH_THEME"
 else
   PLYMOUTH_THEME=""
-  PLYMOUTH_PROMPT="Omarchy's stock look (no current theme detected)"
+  PLYMOUTH_PROMPT="Omarchy's stock look (no theme currently selected)"
 fi
-if confirm "Recolor the Plymouth boot/unlock screen to $PLYMOUTH_PROMPT, add an OMARCHY wordmark under the icon (themed recolor replaces Omarchy's own logo.png, which is the OMARCHY wordmark itself, with the theme's icon-only unlock.png), and a small '(w/ Shakir's postscripts)' watermark in its corner (needs sudo, rebuilds the initramfs)?"; then
+say "Plymouth boot screen: recolors the boot/unlock screen to match $PLYMOUTH_PROMPT."
+say "  Omarchy's own recolor drops the OMARCHY wordmark in favor of the theme's icon; this adds the wordmark back under the icon, plus a small '(w/ Shakir's postscripts)' watermark in the corner."
+say "  Needs sudo and rebuilds the initramfs."
+if confirm "Recolor the boot screen now?"; then
   mkdir -p "$BIN_DIR"
   link "$REPO/bin/plymouth-theme-sync" "$BIN_DIR/plymouth-theme-sync"
   chmod +x "$REPO/bin/plymouth-theme-sync"
   "$BIN_DIR/plymouth-theme-sync" "$PLYMOUTH_THEME"
   warn "/usr/share/plymouth/themes/omarchy/omarchy.script is owned by omarchy-settings; omarchy plymouth set/set-by-theme, or an omarchy update that touches that package, overwrites the recolor, wordmark, and watermark alike, re-run plymouth-theme-sync if so"
 
-  if confirm "Also auto-sync the boot screen on every future 'omarchy theme set' (installs a theme-set hook, needs sudo again on each switch)?"; then
+  say "Optional: a theme-set hook re-runs this automatically every time you 'omarchy theme set' something new, so the boot screen never falls out of sync (needs sudo again on each switch; if it can't get sudo without a prompt, it opens a terminal to ask there instead of hanging silently)."
+  if confirm "Install that hook?"; then
     omarchy hook install theme-set "$REPO/bin/plymouth-theme-sync"
     say "installed the theme-set hook: ~/.config/omarchy/hooks/theme-set.d/plymouth-theme-sync"
-    warn "the hook only runs unattended if sudo can go passwordless right then (a still-warm credential cache); otherwise it skips with a desktop notification telling you to run plymouth-theme-sync yourself, rather than hanging on a sudo prompt with no terminal or askpass helper to answer it"
   else
-    say "skipped the theme-set hook; re-run plymouth-theme-sync (or install.sh -p) by hand after switching themes"
+    say "skipped the theme-set hook; re-run plymouth-theme-sync (or install.sh) by hand after switching themes"
   fi
 else
   say "skipped Plymouth boot screen customization"

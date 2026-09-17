@@ -247,10 +247,13 @@ after every future theme switch, receiving exactly the argument
 sudo password prompt (the theme switcher itself is a graphical, non-terminal
 trigger), and this setup has no askpass helper or polkit agent configured
 either, so `plymouth-theme-sync` only proceeds unattended when sudo can
-already go non-interactively (a still-warm credential cache, `sudo -n true`);
-otherwise it bails immediately with a desktop notification (if
-`notify-send` is available) telling you to run it yourself, rather than
-hanging on a prompt nothing can answer.
+already go non-interactively (a still-warm credential cache, `sudo -n true`).
+Otherwise, rather than hanging on a prompt nothing can answer, it opens a
+held-open terminal (`omarchy-launch-terminal`) that re-runs itself there, so
+the sudo prompt lands somewhere you'll see it and the sync still completes;
+if `omarchy-launch-terminal` itself isn't available, it falls back to a
+desktop notification (if `notify-send` is available) telling you to run it
+yourself.
 
 `/usr/share/plymouth/themes/omarchy/omarchy.script` is owned by the
 `omarchy-settings` package, so re-running `omarchy plymouth set*` yourself,

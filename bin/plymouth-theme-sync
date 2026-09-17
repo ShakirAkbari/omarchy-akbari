@@ -28,10 +28,22 @@ fi
 
 # A hook run from the theme switcher (or any other non-terminal trigger) has
 # no tty, and this setup has no askpass helper or polkit agent either, so a
-# plain sudo would just fail. Only proceed without a terminal if sudo can
-# already go non-interactively (a still-warm credential cache); otherwise
-# bail with a clear, actionable message instead of a confusing sudo error.
-if [ ! -t 0 ] && [ ! -e /dev/tty ] && ! sudo -n true 2>/dev/null; then
+# plain sudo would just fail. `/dev/tty` the device node always exists, so
+# checking for it (the original version of this check) never actually
+# detects "no controlling terminal" and let a bare, invisible sudo error
+# kill the hook instead; check stdin *and* stdout being a tty instead, which
+# is false for exactly a backgrounded, non-interactive trigger like this one.
+# If sudo can already go non-interactively (a still-warm credential cache),
+# keep running right here. Otherwise, open a held-open terminal that re-runs
+# this same command, so sudo has somewhere to prompt and the sync still
+# happens instead of silently getting skipped; this invocation is done once
+# that terminal is launched.
+if [ ! -t 0 ] && [ ! -t 1 ] && ! sudo -n true 2>/dev/null; then
+  if command -v omarchy-launch-terminal >/dev/null 2>&1; then
+    say "no terminal or cached sudo credentials here; opening one to finish the sync"
+    omarchy-launch-terminal --title="plymouth-theme-sync" --hold "$0" "$theme"
+    exit 0
+  fi
   msg="Plymouth boot screen sync needs sudo and no terminal or cached credentials are available; run 'plymouth-theme-sync${theme:+ $theme}' yourself"
   warn "$msg"
   command -v notify-send >/dev/null 2>&1 && notify-send "Boot screen not synced" "$msg"

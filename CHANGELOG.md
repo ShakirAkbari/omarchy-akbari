@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- `install.sh`: the Limine boot menu step now also renames the lowercase
+  `linux` kernel entry (and its Snapper history entries) to `Arch Linux`,
+  matching the title case of the `Omarchy` and `Windows 11` entries
+  alongside it. Backs up `limine.conf` first; once renamed, re-running the
+  step finds nothing left to do and skips it.
+- `bin/plymouth-theme-sync`: when the theme-set hook fires with no terminal
+  and no cached sudo credentials, it now opens a held-open terminal
+  (`omarchy-launch-terminal`) that re-runs the sync there instead of just
+  notifying and giving up, so a theme switch's sudo prompt lands somewhere
+  you'll actually see it and the boot/login screen recolor still happens.
+  Falls back to the old notify-send message if `omarchy-launch-terminal`
+  isn't available.
 - `-p`/`--personal`: `config/hypr/monitors.lua.personal` now pins workspace 1
   to the main ultrawide (`hl.workspace_rule({ workspace = "1", monitor =
   "..." })`) so it stays that monitor's normal home workspace and never gets
