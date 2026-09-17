@@ -318,7 +318,28 @@ else
   say "skipped Plymouth boot screen customization"
 fi
 
-# 10. Personal-only: monitor layout, Chromium flags, full package list ------- #
+# 10. System menu: add a "Reboot to Windows" entry ---------------------------- #
+# Not personal-only: the row only ever shows up in the menu when efibootmgr
+# reports a Windows Boot Manager entry (see the "when" condition in
+# config/omarchy/omarchy-menu.jsonc), so it's inert on a machine without one;
+# this check just avoids asking about it at all in that case.
+if command -v efibootmgr >/dev/null 2>&1 && efibootmgr -v 2>/dev/null | grep -qi 'bootmgfw\.efi'; then
+  say "System menu: adds a 'Reboot to Windows' entry that sets the UEFI BootNext flag to whichever Windows Boot Manager entry efibootmgr reports, then reboots. One-shot: BootOrder (and Omarchy as the regular default) is untouched for every boot after that. Needs sudo, same as the reboot/shutdown entries already there."
+  if confirm "Add it?"; then
+    mkdir -p "$BIN_DIR"
+    link "$REPO/bin/omarchy-reboot-to-windows" "$BIN_DIR/omarchy-reboot-to-windows"
+    chmod +x "$REPO/bin/omarchy-reboot-to-windows"
+    link "$REPO/config/omarchy/omarchy-menu.jsonc" "$CONFIG_DIR/omarchy/extensions/omarchy-menu.jsonc"
+    omarchy menu refresh >/dev/null 2>&1 || true
+    say "added 'Reboot to Windows' to the System menu"
+  else
+    say "skipped the Reboot to Windows menu entry"
+  fi
+else
+  say "no Windows Boot Manager found in efibootmgr, skipping the Reboot to Windows menu entry"
+fi
+
+# 11. Personal-only: monitor layout, Chromium flags, full package list ------- #
 if [ "$PERSONAL" -eq 1 ]; then
   if confirm "Install personal monitor layout (hardcoded for the author's hardware) into $HYPR_DIR/monitors.lua?"; then
     link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"

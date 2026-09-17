@@ -1,0 +1,67 @@
+#!/bin/bash
+# Reboots straight into Windows: sets the UEFI BootNext variable to
+# whichever Windows Boot Manager entry efibootmgr reports, then reboots.
+# BootNext is one-shot, so BootOrder (and Omarchy as the regular default)
+# is untouched for every boot after this one.
+#
+# Detection mirrors install.sh's Limine dual-boot step: prefer a
+# distinctive entry name over the generic "Windows Boot Manager" label,
+# since the generic one is more often a stale leftover from a
+# since-removed drive.
+#
+# Setting BootNext needs sudo (efibootmgr writes NVRAM directly), and the
+# System menu triggers this with no attached terminal, so this falls back
+# to opening one for sudo to prompt in, the same as bin/plymouth-theme-sync.
+set -euo pipefail
+
+say()  { printf '\033[36m==>\033[0m %s\n' "$*"; }
+warn() { printf '\033[33m !!\033[0m %s\n' "$*" >&2; }
+
+if [ ! -t 0 ] && [ ! -t 1 ] && ! sudo -n true 2>/dev/null; then
+  if command -v omarchy-launch-terminal >/dev/null 2>&1; then
+    omarchy-launch-terminal --title="omarchy-reboot-to-windows" --hold "$0"
+    exit 0
+  fi
+  msg="Reboot to Windows needs sudo and no terminal or cached credentials are available; run 'omarchy-reboot-to-windows' yourself"
+  warn "$msg"
+  command -v notify-send >/dev/null 2>&1 && notify-send "Not rebooted to Windows" "$msg"
+  exit 1
+fi
+
+# Each match is "<boot id>\t<entry name>\t<partition GUID>", one per
+# Windows Boot Manager entry found; a dual-boot machine can have more than
+# one (a stale entry from a previous install is common). Using mapfile
+# over a process substitution, rather than a plain $(...) capture, means
+# efibootmgr's own exit status (nonzero on some machines even when its
+# output is complete) can't trip `set -e` here.
+mapfile -t win_entries < <(efibootmgr -v 2>/dev/null \
+  | grep -i 'bootmgfw\.efi' \
+  | sed -E 's/^Boot([0-9A-Fa-f]{4})\*? +(.*)'$'\t''HD\([0-9]+,GPT,([0-9a-fA-F-]+),.*/\1'$'\t''\2'$'\t''\3/' \
+  | awk -F'\t' '!seen[$3]++')
+
+if [ "${#win_entries[@]}" -eq 0 ]; then
+  warn "no Windows Boot Manager entry found in efibootmgr; nothing to reboot into"
+  exit 1
+fi
+
+pick="${win_entries[0]}"
+for entry in "${win_entries[@]}"; do
+  IFS=$'\t' read -r _ name _ <<< "$entry"
+  if [ "$name" != "Windows Boot Manager" ]; then
+    pick="$entry"
+    break
+  fi
+done
+IFS=$'\t' read -r id name _ <<< "$pick"
+
+sudo efibootmgr --bootnext "$id" >/dev/null
+say "BootNext set to $id ($name); rebooting"
+
+# Same graceful-reboot shape as Omarchy's own omarchy-system-reboot:
+# schedule the reboot in the user manager so closing this terminal's scope
+# can't cancel it, then close windows and give apps a moment to exit clean.
+systemd-run --user --collect --quiet --on-active="2s" --timer-property=AccuracySec=100ms systemctl reboot --no-wall
+omarchy-osd -i reboot -m "Rebooting to $name" -d 5000
+omarchy-state clear re*-required
+omarchy-hyprland-window-close-all
+sleep 1

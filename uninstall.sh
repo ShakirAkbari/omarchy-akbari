@@ -25,9 +25,9 @@ Usage: uninstall.sh [-h|--help]
 
 Asks before removing each piece install.sh installed: keybindings, Spotify
 keys, hypr-goldenspiral, numlock, the Limine Windows entry,
-xwayland-primary-monitor, and (if present) the personal-only monitor layout,
-Plymouth boot screen theming (and its theme-set hook), Chromium flags, and
-package list.
+xwayland-primary-monitor, Plymouth boot screen theming (and its theme-set
+hook), the System menu's Reboot to Windows entry, and (if present) the
+personal-only monitor layout, Chromium flags, and package list.
 
   -h, --help   Show this help.
 EOF
@@ -352,6 +352,27 @@ if [ -f "$PLYMOUTH_SCRIPT_BAK" ]; then
   fi
 else
   say "Plymouth boot screen wordmark and watermark not installed, nothing to do"
+fi
+
+if [ -L "$CONFIG_DIR/omarchy/extensions/omarchy-menu.jsonc" ]; then
+  if confirm "Remove the 'Reboot to Windows' entry from the System menu?"; then
+    unlink_ours "$REPO/config/omarchy/omarchy-menu.jsonc" "$CONFIG_DIR/omarchy/extensions/omarchy-menu.jsonc"
+    omarchy menu refresh >/dev/null 2>&1 || true
+  else
+    say "left the Reboot to Windows menu entry in place"
+  fi
+else
+  say "Reboot to Windows menu entry not installed, nothing to do"
+fi
+
+if [ -L "$BIN_DIR/omarchy-reboot-to-windows" ]; then
+  if confirm "Remove omarchy-reboot-to-windows from $BIN_DIR?"; then
+    unlink_ours "$REPO/bin/omarchy-reboot-to-windows" "$BIN_DIR/omarchy-reboot-to-windows"
+  else
+    say "left omarchy-reboot-to-windows in place"
+  fi
+else
+  say "omarchy-reboot-to-windows not installed, nothing to do"
 fi
 
 if [ -f "$REPO/packages-personal.txt" ] && command -v omarchy >/dev/null 2>&1; then

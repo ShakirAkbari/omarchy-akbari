@@ -40,6 +40,11 @@ boot menu that actually shows up and can chainload Windows.
 |                                       omarchy/omarchy.script       |
 |                                       (backed up), optionally a    |
 |                                       theme-set hook               |
+|  omarchy-reboot-to-windows     ---->  ~/.local/bin/, wired into    |
+|                                       the System menu via          |
+|                                       ~/.config/omarchy/           |
+|                                       extensions/                  |
+|                                       omarchy-menu.jsonc           |
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
@@ -66,9 +71,10 @@ cd ~/Projects/omarchy-shakir
 It asks a yes/no question before each step (keybindings, Spotify keys,
 hypr-goldenspiral, numlock, Limine, fix Right Ctrl in Remmina (remap host
 key), Remmina's audio redirect default, xwayland-primary-monitor, Plymouth
-boot screen theming, and each personal-only piece), so you can decline
-anything you don't want on a given run. Piped in with no terminal attached
-(`curl ... | bash`), every question defaults to no.
+boot screen theming, the System menu's Reboot to Windows entry, and each
+personal-only piece), so you can decline anything you don't want on a given
+run. Piped in with no terminal attached (`curl ... | bash`), every question
+defaults to no.
 
 Re-running is safe and does not create duplicates: existing files it would
 overwrite get backed up next to themselves as `<file>.bak.<timestamp>`

@@ -1,0 +1,25 @@
+{
+  // Extends the Quickshell Omarchy menu with JSONC.
+  //
+  // IDs are object keys. The parent is inferred from the dotted id, so
+  // "system.reboot-windows" appears under the existing "system" submenu.
+  // Reuse an existing id to override/extend it.
+  //
+  // Fields:
+  //   icon        Nerd Font glyph shown in the icon column.
+  //   label       Visible row title.
+  //   action      Shell command to run. If omitted, the row is a submenu.
+  //   when        Shell condition; hide row when it fails.
+  //
+  // See /usr/share/omarchy/default/omarchy/omarchy-menu.jsonc for the full
+  // field list and the built-in menu this extends.
+
+  // Only shown when efibootmgr actually reports a Windows Boot Manager
+  // entry, so the row disappears on a machine with no Windows install.
+  "system.reboot-windows": {
+    "icon": "",
+    "label": "Reboot to Windows",
+    "when": "efibootmgr 2>/dev/null | grep -qi 'bootmgfw\\.efi'",
+    "action": "omarchy-reboot-to-windows"
+  },
+}
