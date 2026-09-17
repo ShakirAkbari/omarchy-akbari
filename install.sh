@@ -46,11 +46,19 @@ done
 # piped in via `curl | bash`. Defaults to no if there's no terminal at all.
 confirm() {
   local prompt="$1" reply
-  if [ ! -t 0 ] && [ ! -e /dev/tty ]; then
+  if [ -t 0 ]; then
+    read -r -p "$prompt [y/N] " reply
+  elif { exec 3<>/dev/tty; } 2>/dev/null; then
+    # /dev/tty exists as a node but opening it can still fail (ENXIO) when
+    # this process has no controlling terminal at all, e.g. detached from a
+    # session; `[ -e /dev/tty ]` alone doesn't catch that. The brace group
+    # keeps the stderr silencing scoped to this attempt, not the whole shell.
+    read -r -p "$prompt [y/N] " reply <&3
+    exec 3<&-
+  else
     warn "no terminal available, assuming no for: $prompt"
     return 1
   fi
-  read -r -p "$prompt [y/N] " reply < /dev/tty
   case "$reply" in
     [yY]|[yY][eE][sS]) return 0 ;;
     *) return 1 ;;
