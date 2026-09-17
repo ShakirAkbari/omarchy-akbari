@@ -51,10 +51,10 @@ if [ ! -t 0 ] && [ ! -t 1 ] && ! sudo -n true 2>/dev/null; then
 fi
 
 if [ -n "$theme" ]; then
-  say "recoloring Plymouth + SDDM to match $theme"
+  say "recoloring Plymouth + SDDM Boot Screen to match the new theme: $theme"
   omarchy plymouth set-by-theme "$theme"
 else
-  say "resetting Plymouth + SDDM to Omarchy's stock look"
+  say "resetting Plymouth + SDDM Boot Screen to Omarchy's stock look"
   omarchy plymouth reset
 fi
 
