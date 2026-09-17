@@ -50,6 +50,11 @@ if [ ! -t 0 ] && [ ! -t 1 ] && ! sudo -n true 2>/dev/null; then
   exit 1
 fi
 
+# Prime sudo with a custom prompt before `omarchy plymouth` and the steps
+# below need it themselves, so whichever one hits it first asks with a
+# message that actually says what it's for, not sudo's generic default.
+sudo -v -p "Enter sudo password to change the boot screen: "
+
 if [ -n "$theme" ]; then
   say "recoloring Plymouth + SDDM Boot Screen to match the new theme: $theme"
   omarchy plymouth set-by-theme "$theme"
