@@ -218,7 +218,7 @@ if command -v efibootmgr >/dev/null 2>&1; then
       say "  install, or a since-removed drive, is common; firmware doesn't"
       say "  track which one is current)."
       say "  Picking one here feeds both the Limine boot menu entry (step 6)"
-      say "  and the System menu's Reboot to Windows entry (step 11) below;"
+      say "  and the System menu's Reboot to Windows entry (step 12) below;"
       say "  skipping this leaves both with nothing to offer this run."
       i=1
       for entry in "${win_entries[@]}"; do
@@ -380,7 +380,30 @@ else
   say "skipped xwayland-primary-monitor"
 fi
 
-# 10. Plymouth boot/unlock screen: matches the theme, plus a signature ------- #
+# 10. NVIDIA hardware video decode for Chromium ------------------------------- #
+# Not personal-only: gated on actually having an NVIDIA GPU (via lspci)
+# instead of the -p flag, so it's offered on any machine that has one, not
+# just the author's own.
+if lspci -d '10de:' 2>/dev/null | grep -qE 'VGA compatible controller|3D controller'; then
+  say "NVIDIA video decode for Chromium: Chromium's VA-API wrapper skips"
+  say "  any driver literally named 'nvidia' by default, so hardware video"
+  say "  decode (YouTube included) silently falls back to software instead"
+  say "  (higher CPU/power use) on an NVIDIA GPU."
+  say "  Installs libva-nvidia-driver if it's missing, and sets"
+  say "  VaapiIgnoreDriverChecks + VaapiOnNvidiaGPUs, which bypass that"
+  say "  check, in $CONFIG_DIR/chromium-flags.conf."
+  if confirm "Enable NVIDIA hardware video decode flags for Chromium?"; then
+    if ! pacman -Qq libva-nvidia-driver >/dev/null 2>&1; then
+      omarchy pkg add libva-nvidia-driver
+    fi
+    link "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"
+    warn "chromium-flags.conf may get overwritten by omarchy-refresh-chromium; re-run install.sh if so"
+  else
+    say "skipped Chromium hardware video decode flags"
+  fi
+fi
+
+# 11. Plymouth boot/unlock screen: matches the theme, plus a signature ------- #
 # Not personal-only: Plymouth theming has nothing to do with author-specific
 # hardware, it just recolors whichever Omarchy theme is currently selected,
 # so anyone running Omarchy benefits.
@@ -428,7 +451,7 @@ else
   say "skipped Plymouth boot screen customization"
 fi
 
-# 11. System menu: add a "Reboot to Windows" entry ---------------------------- #
+# 12. System menu: add a "Reboot to Windows" entry ---------------------------- #
 # Not personal-only: the row only ever shows up in the menu when efibootmgr
 # reports a Windows Boot Manager entry (see the "when" condition in
 # config/omarchy/omarchy-menu.jsonc), so it's inert on a machine without one;
@@ -459,7 +482,7 @@ else
   say "  menu entry"
 fi
 
-# 12. Personal-only: monitor layout, Chromium flags, full package list ------- #
+# 13. Personal-only: monitor layout, startup workspace, full package list --- #
 if [ "$PERSONAL" -eq 1 ]; then
   say "Personal monitor layout: hardcodes monitor positions, resolutions,"
   say "  and workspace assignments for the author's own multi-monitor setup"
@@ -570,24 +593,6 @@ if [ "$PERSONAL" -eq 1 ]; then
     fi
   else
     say "skipped shakir.spotify bar widget"
-  fi
-
-  # NVIDIA VA-API hardware video decode in Chromium. Chromium's own VA-API
-  # wrapper skips any driver named "nvidia" by default; VaapiIgnoreDriverChecks
-  # and VaapiOnNvidiaGPUs bypass that, letting libva-nvidia-driver (installed
-  # below) actually get used for decode instead of falling back to software.
-  # Only meaningful with an NVIDIA GPU, hence personal-only.
-  say "NVIDIA video decode for Chromium: Chromium's VA-API wrapper skips"
-  say "  any driver literally named 'nvidia' by default, so hardware video"
-  say "  decode silently falls back to software (higher CPU/power use) on"
-  say "  an NVIDIA GPU. These flags (VaapiIgnoreDriverChecks,"
-  say "  VaapiOnNvidiaGPUs) bypass that check, letting libva-nvidia-driver"
-  say "  actually get used, in $CONFIG_DIR/chromium-flags.conf."
-  if confirm "Enable NVIDIA hardware video decode flags for Chromium?"; then
-    link "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"
-    warn "chromium-flags.conf may get overwritten by omarchy-refresh-chromium; re-run install.sh -p if so"
-  else
-    say "skipped Chromium hardware video decode flags"
   fi
 
   say "Personal package list: the author's full package set for this kind"

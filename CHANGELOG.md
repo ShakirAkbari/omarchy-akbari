@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `install.sh`: the NVIDIA hardware video decode Chromium flags
+  (`chromium-flags.conf`) are no longer gated behind `-p`/`--personal`.
+  `install.sh` now detects an NVIDIA GPU itself (`lspci -d '10de:'`) and
+  offers the step on any machine that has one, installing
+  `libva-nvidia-driver` first if it isn't already present, instead of
+  relying on it being pulled in by the personal package list.
 - Adds a "Reboot to Windows" entry to the Omarchy System menu
   (`bin/omarchy-reboot-to-windows`, wired in via
   `config/omarchy/omarchy-menu.jsonc`): sets the UEFI BootNext flag to

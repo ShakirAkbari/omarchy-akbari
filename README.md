@@ -41,6 +41,10 @@ boot menu that actually shows up and can chainload Windows.
 |  xwayland-primary-monitor     ---->  ~/.local/bin/, wired into    |
 |                                       autostart.lua               |
 |                                       (o.exec_on_start)           |
+|  chromium-flags.conf          ---->  ~/.config/                  |
+|                                       chromium-flags.conf (NVIDIA |
+|                                       video decode, only offered  |
+|                                       if an NVIDIA GPU is found)  |
 |  plymouth-theme-sync           ---->  ~/.local/bin/, patches       |
 |                                       /usr/share/plymouth/themes/  |
 |                                       omarchy/omarchy.script       |
@@ -61,7 +65,6 @@ boot menu that actually shows up and can chainload Windows.
 |    shakir.spotify plugin      ---->  ~/.config/omarchy/plugins/, |
 |                                       added to shell.json's        |
 |                                       bar layout (right section)  |
-|    chromium-flags.conf      ---->  ~/.config/chromium-flags.conf |
 |    packages-personal.txt      ---->  omarchy pkg add             |
 +-----------------------------------------------------------------+
 ```
@@ -76,11 +79,12 @@ cd ~/Projects/omarchy-shakir
 
 It asks a yes/no question before each step (keybindings, Spotify keys,
 hypr-goldenspiral, numlock, Limine, fix Right Ctrl in Remmina (remap host
-key), Remmina's audio redirect default, xwayland-primary-monitor, Plymouth
-boot screen theming, the System menu's Reboot to Windows entry, and each
-personal-only piece), so you can decline anything you don't want on a given
-run. Piped in with no terminal attached (`curl ... | bash`), every question
-defaults to no.
+key), Remmina's audio redirect default, xwayland-primary-monitor, NVIDIA
+hardware video decode for Chromium (only offered if an NVIDIA GPU is
+detected), Plymouth boot screen theming, the System menu's Reboot to
+Windows entry, and each personal-only piece), so you can decline anything
+you don't want on a given run. Piped in with no terminal attached
+(`curl ... | bash`), every question defaults to no.
 
 One step is a numbered choice instead of yes/no: if efibootmgr reports more
 than one Windows Boot Manager entry (a stale leftover from a previous
@@ -135,9 +139,9 @@ synced](#why-plymouth-theme-sync-patches-the-script-directly-and-how-it-stays-sy
 below for details. Not personal-only: this benefits anyone running Omarchy.
 
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
-monitor layout, Chromium flags enabling NVIDIA hardware video decode, and my
-full extra package list (gaming, virtualization, NVIDIA drivers, work apps).
-Skip it everywhere else.
+monitor layout, the startup-workspace fix, both bar widgets, and my full
+extra package list (gaming, virtualization, NVIDIA drivers, work apps). Skip
+it everywhere else.
 
 ```sh
 ./install.sh --personal
@@ -223,13 +227,15 @@ of play/pause/skip logic it needs against whichever player's `dbusName` or
 
 Chromium's own VA-API wrapper skips any driver named "nvidia" by default,
 since NVIDIA's backend isn't on Google's supported list, even though
-`libva-nvidia-driver` (installed alongside the NVIDIA packages above) bridges
-VA-API to NVDEC just fine. `VaapiIgnoreDriverChecks` and `VaapiOnNvidiaGPUs`
-bypass that check so hardware video decode actually gets used instead of
-silently falling back to software. Since `chromium-flags.conf` only applies
-from a cold start, this needs a full Chromium quit and relaunch to take
-effect, and running `omarchy-refresh-chromium` will overwrite it back to the
-Omarchy default (re-run `install.sh -p` to restore it).
+`libva-nvidia-driver` bridges VA-API to NVDEC just fine. `VaapiIgnoreDriverChecks`
+and `VaapiOnNvidiaGPUs` bypass that check so hardware video decode (YouTube
+included) actually gets used instead of silently falling back to software.
+Not personal-only: `install.sh` detects an NVIDIA GPU itself (`lspci -d
+'10de:'`) and offers this step on any machine that has one, installing
+`libva-nvidia-driver` if it isn't already present. Since `chromium-flags.conf`
+only applies from a cold start, this needs a full Chromium quit and relaunch
+to take effect, and running `omarchy-refresh-chromium` will overwrite it
+back to the Omarchy default (re-run `install.sh` to restore it).
 
 ## Why plymouth-theme-sync patches the script directly, and how it stays synced
 
