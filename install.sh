@@ -109,7 +109,14 @@ else
 fi
 
 # 2. Spotify media-key scripts ----------------------------------------------- #
-if confirm "Install Spotify media-key scripts into $BIN_DIR?"; then
+say "Spotify media-key scripts: the two scripts behind step 1's Play/Stop"
+say "  bindings above."
+say "  - spotify-play-key: launches Spotify if it isn't running yet,"
+say "    otherwise toggles play/pause."
+say "  - spotify-stop-key: a single press pauses playback; a second press"
+say "    within 400ms quits Spotify instead (asks it to quit cleanly first,"
+say "    falls back to SIGTERM)."
+if confirm "Install these into $BIN_DIR?"; then
   mkdir -p "$BIN_DIR"
   for script in spotify-play-key spotify-stop-key; do
     link "$REPO/bin/$script" "$BIN_DIR/$script"
@@ -120,7 +127,17 @@ else
 fi
 
 # 3. Golden-spiral layout + chronobar taskbar --------------------------------- #
-if confirm "Clone/update hypr-goldenspiral into $PROJECTS_DIR and wire it into hyprland.lua?"; then
+say "Golden-spiral layout + chronobar taskbar:"
+say "  - hypr-goldenspiral: a custom Hyprland tiling layout. The window"
+say "    you're working in becomes a large mainstage; every other window"
+say "    reflows into a golden-ratio-proportioned column around it, so a"
+say "    new window gets the biggest free tile instead of splitting the"
+say "    screen in half again."
+say "  - hypr-chronobar: a companion app bar/taskbar; goldenspiral carves"
+say "    space out for it automatically whenever it's running."
+say "  Clones both from github.com/ShakirAkbari into $PROJECTS_DIR (or pulls"
+say "  updates if already cloned), and wires goldenspiral into hyprland.lua."
+if confirm "Install golden-spiral + chronobar?"; then
   GOLDENSPIRAL_DIR="$PROJECTS_DIR/hypr-goldenspiral"
   mkdir -p "$PROJECTS_DIR"
   if [ -d "$GOLDENSPIRAL_DIR/.git" ]; then
@@ -137,7 +154,17 @@ else
 fi
 
 # 4. Numlock on boot, before any login screen --------------------------------- #
-if confirm "Enable numlock on boot (SDDM greeter config + its own Hyprland config + a systemd service, needs sudo)?"; then
+say "Numlock on boot: turns numlock on before you ever see a login prompt,"
+say "  covering both the SDDM login screen and the text console."
+say "  - SDDM greeter config (Numlock=on), plus the greeter's own bundled"
+say "    Hyprland config: the greeter runs a separate Hyprland instance"
+say "    with its own config, which ignores the session's"
+say "    input.numlock_by_default."
+say "  - A systemd service that turns numlock on for the text console too."
+say "  Needs sudo. The greeter's Hyprland config is owned by the"
+say "  omarchy-settings package, so an 'omarchy update' that touches it"
+say "  reverts this; just re-run install.sh again after that happens."
+if confirm "Enable numlock on boot?"; then
   sudo install -Dm644 "$REPO/config/sddm/50-numlock.conf" /etc/sddm.conf.d/50-numlock.conf
   sudo install -Dm644 "$REPO/config/systemd/numlock-console.service" /etc/systemd/system/numlock-console.service
   # The SDDM Wayland greeter runs its own Hyprland instance with its own
@@ -178,7 +205,13 @@ if command -v efibootmgr >/dev/null 2>&1; then
   if ! "$REPO/bin/omarchy-pick-windows-boot-entry" >/dev/null 2>&1; then
     mapfile -t win_entries < <("$REPO/bin/omarchy-pick-windows-boot-entry" --list 2>/dev/null)
     if [ "${#win_entries[@]}" -gt 1 ]; then
-      say "Windows dual-boot: efibootmgr reports more than one Windows Boot Manager entry. Picking one feeds both the Limine boot menu entry and the System menu's Reboot to Windows entry below; skipping this leaves both with nothing to offer this run."
+      say "Windows dual-boot: efibootmgr reports more than one Windows Boot"
+      say "  Manager entry on this machine (a stale leftover from a previous"
+      say "  install, or a since-removed drive, is common; firmware doesn't"
+      say "  track which one is current)."
+      say "  Picking one here feeds both the Limine boot menu entry (step 6)"
+      say "  and the System menu's Reboot to Windows entry (step 11) below;"
+      say "  skipping this leaves both with nothing to offer this run."
       i=1
       for entry in "${win_entries[@]}"; do
         IFS=$'\t' read -r _ name _ <<< "$entry"
@@ -204,9 +237,16 @@ fi
 
 # 6. Limine boot menu: real timeout + Windows dual-boot entry ---------------- #
 LIMINE_CONF="/boot/limine.conf"
+say "Limine boot menu: Omarchy's default Limine config has no real timeout"
+say "  (0, or unset), so the boot menu flashes past before you can pick an"
+say "  entry unless you're already holding a key down. This sets a real"
+say "  5-second timeout instead, and backs up $LIMINE_CONF first."
+say "  Also renames bare 'linux' kernel entries to 'Arch Linux' in the menu,"
+say "  and, if a Windows Boot Manager entry was resolved in step 5, offers"
+say "  to add a chainload entry for it."
 if [ ! -f "$LIMINE_CONF" ]; then
   warn "no $LIMINE_CONF, skipping Limine setup (not using Limine, or ESP mounted elsewhere)"
-elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (backs it up first, needs sudo)?"; then
+elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (needs sudo)?"; then
   # Only back up once per run, and only if a write actually happens below,
   # so re-running with nothing left to change doesn't pile up .bak files.
   limine_backed_up=0
@@ -241,7 +281,8 @@ elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (backs it
     # Same picker step 5 above already made executable and, if there was
     # more than one entry, already asked about; this just uses its answer.
     if ! pick="$("$REPO/bin/omarchy-pick-windows-boot-entry")"; then
-      say "no Windows Boot Manager entry resolved (none found, or more than one with nothing chosen in step 5), skipping dual-boot entry"
+      say "no Windows Boot Manager entry resolved (none found, or more than"
+      say "  one with nothing chosen in step 5), skipping dual-boot entry"
     else
       IFS=$'\t' read -r _ name guid <<< "$pick"
       if confirm "Add a Limine entry chainloading '$name' at partition $guid?"; then
@@ -265,9 +306,16 @@ fi
 # 7. Fix Right Ctrl in Remmina (remap host key) ------------------------------ #
 REMMINA_PREF="$CONFIG_DIR/remmina/remmina.pref"
 if [ -f "$REMMINA_PREF" ]; then
-  if confirm "Fix Right Ctrl in Remmina (remap host key from Right Ctrl to Scroll Lock in $REMMINA_PREF; Right Ctrl as Host key swallows Ctrl+Shift+Arrow and other right-Ctrl combos before they reach the remote session)?"; then
+  say "Remmina Right Ctrl fix: Remmina's default Host key is Right Ctrl,"
+  say "  which intercepts every Right-Ctrl combo (Ctrl+Shift+Arrow, for"
+  say "  example) before it reaches the remote session, instead of passing"
+  say "  it through."
+  say "  Remaps the Host key to Scroll Lock in $REMMINA_PREF, a key nothing"
+  say "  else needs during a remote session."
+  if confirm "Fix Right Ctrl in Remmina?"; then
     if pgrep -x remmina >/dev/null 2>&1; then
-      warn "Remmina is running and rewrites this file on exit, which would undo this; quit Remmina (check the tray, not just the window) and re-run"
+      warn "Remmina is running and rewrites this file on exit, which would undo this;"
+      warn "  quit Remmina (check the tray, not just the window) and re-run"
     else
       sed -i 's/^hostkey=.*/hostkey=65300/; s/^shortcutkey_grab=.*/shortcutkey_grab=65300/' "$REMMINA_PREF"
       say "set Remmina's Host key to Scroll Lock (65300) in $REMMINA_PREF"
@@ -279,9 +327,16 @@ fi
 
 # 8. Remmina: default new RDP connections to local audio redirect ------------ #
 if [ -f "$REMMINA_PREF" ]; then
-  if confirm "Default new Remmina RDP connections to redirecting remote audio to this computer's speakers (sound=local in $REMMINA_PREF)?"; then
+  say "Remmina RDP audio: Remmina's default for a new RDP connection is"
+  say "  sound=off, so remote audio goes nowhere unless you change it per"
+  say "  connection. Sets sound=local as the default in $REMMINA_PREF, so"
+  say "  new connections redirect remote audio to this computer's speakers."
+  say "  Only changes the default for new connections; existing saved ones"
+  say "  are untouched."
+  if confirm "Default new Remmina RDP connections to local audio redirect?"; then
     if pgrep -x remmina >/dev/null 2>&1; then
-      warn "Remmina is running and rewrites this file on exit, which would undo this; quit Remmina (check the tray, not just the window) and re-run"
+      warn "Remmina is running and rewrites this file on exit, which would undo this;"
+      warn "  quit Remmina (check the tray, not just the window) and re-run"
     else
       if grep -q '^sound=' "$REMMINA_PREF"; then
         sed -i 's/^sound=.*/sound=local/' "$REMMINA_PREF"
@@ -296,7 +351,20 @@ if [ -f "$REMMINA_PREF" ]; then
 fi
 
 # 9. XWayland: make the largest connected monitor the primary output -------- #
-if confirm "Install xwayland-primary-monitor into $BIN_DIR and run it at session start (fixes Steam/Proton games defaulting to a smaller or rotated secondary monitor under XWayland)?"; then
+say "XWayland primary monitor: Hyprland/XWayland never pick a primary output"
+say "  on their own; whichever monitor enumerates first (often just whichever"
+say "  one happens to be plugged in first) ends up primary, regardless of"
+say "  size or orientation. X11 apps that ask for 'the' monitor instead of a"
+say "  specific one (Steam and Proton games going fullscreen, for example)"
+say "  land there too, which is how a smaller or rotated secondary monitor"
+say "  ends up showing the game instead of the main display."
+say "  Fix: at every session start, picks the connected monitor with the"
+say "  largest resolution (width x height, not physical screen size) and"
+say "  sets it as the X11/XWayland primary via 'xrandr --output <name>"
+say "  --primary'. If your biggest-resolution monitor isn't the one you want"
+say "  games to open on, this picks the wrong one; skip it and set an"
+say "  explicit primary with xrandr yourself instead."
+if confirm "Install xwayland-primary-monitor into $BIN_DIR and run it at session start?"; then
   link "$REPO/bin/xwayland-primary-monitor" "$BIN_DIR/xwayland-primary-monitor"
   chmod +x "$REPO/bin/xwayland-primary-monitor"
   require_line "$HYPR_DIR/autostart.lua" 'o.exec_on_start("xwayland-primary-monitor")'
@@ -321,17 +389,27 @@ else
   PLYMOUTH_THEME=""
   PLYMOUTH_PROMPT="Omarchy's stock look (no theme currently selected)"
 fi
-say "Plymouth boot screen: recolors the boot/unlock screen to match $PLYMOUTH_PROMPT."
-say "  Omarchy's own recolor drops the OMARCHY wordmark in favor of the theme's icon; this adds the wordmark back under the icon, plus a small '(w/ Shakir's postscripts)' watermark in the corner."
+say "Plymouth boot screen: recolors the boot/unlock screen to match"
+say "  $PLYMOUTH_PROMPT."
+say "  Omarchy's own recolor drops the OMARCHY wordmark in favor of the"
+say "  theme's icon; this adds the wordmark back under the icon, plus a"
+say "  small '(w/ Shakir's postscripts)' watermark in the corner."
 say "  Needs sudo and rebuilds the initramfs."
 if confirm "Recolor the boot screen now?"; then
   mkdir -p "$BIN_DIR"
   link "$REPO/bin/plymouth-theme-sync" "$BIN_DIR/plymouth-theme-sync"
   chmod +x "$REPO/bin/plymouth-theme-sync"
   "$BIN_DIR/plymouth-theme-sync" "$PLYMOUTH_THEME"
-  warn "/usr/share/plymouth/themes/omarchy/omarchy.script is owned by omarchy-settings; omarchy plymouth set/set-by-theme, or an omarchy update that touches that package, overwrites the recolor, wordmark, and watermark alike, re-run plymouth-theme-sync if so"
+  warn "/usr/share/plymouth/themes/omarchy/omarchy.script is owned by omarchy-settings"
+  warn "  omarchy plymouth set/set-by-theme, or an omarchy update that touches that"
+  warn "  package, overwrites the recolor, wordmark, and watermark alike; re-run"
+  warn "  plymouth-theme-sync if so"
 
-  say "Optional: a theme-set hook re-runs this automatically every time you 'omarchy theme set' something new, so the boot screen never falls out of sync (needs sudo again on each switch; if it can't get sudo without a prompt, it opens a terminal to ask there instead of hanging silently)."
+  say "Optional: a theme-set hook re-runs this automatically every time you"
+  say "  'omarchy theme set' something new, so the boot screen never falls"
+  say "  out of sync (needs sudo again on each switch; if it can't get sudo"
+  say "  without a prompt, it opens a terminal to ask there instead of"
+  say "  hanging silently)."
   if confirm "Install that hook?"; then
     omarchy hook install theme-set "$REPO/bin/plymouth-theme-sync"
     say "installed the theme-set hook: ~/.config/omarchy/hooks/theme-set.d/plymouth-theme-sync"
@@ -351,8 +429,13 @@ fi
 # executable and, if needed, asked about), so "is there one to offer" and
 # "which one gets used" never disagree.
 if command -v efibootmgr >/dev/null 2>&1 && "$REPO/bin/omarchy-pick-windows-boot-entry" >/dev/null 2>&1; then
-  say "System menu: adds a 'Reboot to Windows' entry that sets the UEFI BootNext flag to whichever Windows Boot Manager entry efibootmgr reports, then reboots. One-shot: BootOrder (and Omarchy as the regular default) is untouched for every boot after that. Needs sudo, same as the reboot/shutdown entries already there."
-  if confirm "Add it?"; then
+  say "System menu: adds a 'Reboot to Windows' entry to the System menu."
+  say "  Sets the UEFI BootNext flag to the Windows Boot Manager entry"
+  say "  resolved in step 5, then reboots into it."
+  say "  One-shot: BootOrder (and Omarchy as the regular default) is"
+  say "  untouched for every boot after that. Needs sudo, same as the"
+  say "  reboot/shutdown entries already in that menu."
+  if confirm "Add a 'Reboot to Windows' entry to the System menu?"; then
     mkdir -p "$BIN_DIR"
     link "$REPO/bin/omarchy-reboot-to-windows" "$BIN_DIR/omarchy-reboot-to-windows"
     chmod +x "$REPO/bin/omarchy-reboot-to-windows"
@@ -363,12 +446,19 @@ if command -v efibootmgr >/dev/null 2>&1 && "$REPO/bin/omarchy-pick-windows-boot
     say "skipped the Reboot to Windows menu entry"
   fi
 else
-  say "no Windows Boot Manager entry resolved (none found, or more than one with nothing chosen in step 5), skipping the Reboot to Windows menu entry"
+  say "no Windows Boot Manager entry resolved (none found, or more than one"
+  say "  with nothing chosen in step 5), skipping the Reboot to Windows"
+  say "  menu entry"
 fi
 
 # 12. Personal-only: monitor layout, Chromium flags, full package list ------- #
 if [ "$PERSONAL" -eq 1 ]; then
-  if confirm "Install personal monitor layout (hardcoded for the author's hardware) into $HYPR_DIR/monitors.lua?"; then
+  say "Personal monitor layout: hardcodes monitor positions, resolutions,"
+  say "  and workspace assignments for the author's own multi-monitor setup"
+  say "  (an ultrawide primary + a portrait secondary). Only useful if your"
+  say "  hardware matches; on any other machine, write your own"
+  say "  $HYPR_DIR/monitors.lua instead."
+  if confirm "Install personal monitor layout into $HYPR_DIR/monitors.lua?"; then
     link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"
   else
     say "skipped personal monitor layout"
@@ -393,7 +483,14 @@ if [ "$PERSONAL" -eq 1 ]; then
   # lives on one monitor. Confirmed via `hyprctl eval`: forced focus onto the
   # portrait monitor's workspace 11 first, then this moved both the active
   # workspace and the focused monitor back in one call.
-  if confirm "Start every session on golden-spiral's workspace (10, on the main ultrawide), fixing the launcher/menu opening on the portrait monitor right after login?"; then
+  say "Startup workspace: monitors attach asynchronously at login, and"
+  say "  whichever one attaches last tends to win initial keyboard/cursor"
+  say "  focus, regardless of per-workspace monitor defaults. With the"
+  say "  portrait monitor attaching last, that lands the launcher/menu"
+  say "  there instead of the main ultrawide right after login."
+  say "  Fix: force-focuses golden-spiral's workspace (10, on the"
+  say "  ultrawide) at the start of every session."
+  if confirm "Start every session on golden-spiral's workspace (10)?"; then
     require_line "$HYPR_DIR/autostart.lua" 'o.exec_on_start([[hyprctl eval '"'"'hl.dispatch(hl.dsp.focus({ workspace = "10" }))'"'"']])'
   else
     say "skipped forcing the startup workspace"
@@ -403,7 +500,12 @@ if [ "$PERSONAL" -eq 1 ]; then
   # (the id itself is personal, hence -p only) that always shows a spiral
   # icon for workspace 10, where golden-spiral lives instead of a plain
   # number. Swaps it in for omarchy.workspaces in shell.json's bar layout.
-  if confirm "Install the shakir.workspaces bar widget (replaces omarchy.workspaces in $CONFIG_DIR/omarchy/shell.json with a golden-spiral-aware version)?"; then
+  say "shakir.workspaces bar widget: a fork of Omarchy's built-in"
+  say "  workspaces widget that shows a spiral icon for workspace 10"
+  say "  (where golden-spiral lives) instead of a plain number. Swaps it in"
+  say "  for omarchy.workspaces in $CONFIG_DIR/omarchy/shell.json's bar"
+  say "  layout."
+  if confirm "Install the shakir.workspaces bar widget?"; then
     plugin_dir="$CONFIG_DIR/omarchy/plugins/shakir.workspaces"
     mkdir -p "$plugin_dir"
     link "$REPO/config/omarchy/plugins/shakir.workspaces/manifest.json" "$plugin_dir/manifest.json"
@@ -431,7 +533,13 @@ if [ "$PERSONAL" -eq 1 ]; then
   # Reads Quickshell's Mpris module directly rather than Omarchy's own
   # omarchy.media service, which third-party bar widgets are sandboxed away
   # from (see the comment atop SpotifyWidget.qml).
-  if confirm "Install the shakir.spotify bar widget (Spotify now-playing, added to $CONFIG_DIR/omarchy/shell.json's bar layout)?"; then
+  say "shakir.spotify bar widget: Spotify now-playing plus play/pause/skip"
+  say "  in the bar, placed between the clock/weather section and the"
+  say "  tray/network icon cluster. Reads Quickshell's Mpris module"
+  say "  directly, since third-party widgets are sandboxed away from"
+  say "  Omarchy's own media service. Added to"
+  say "  $CONFIG_DIR/omarchy/shell.json's bar layout."
+  if confirm "Install the shakir.spotify bar widget?"; then
     plugin_dir="$CONFIG_DIR/omarchy/plugins/shakir.spotify"
     mkdir -p "$plugin_dir"
     link "$REPO/config/omarchy/plugins/shakir.spotify/manifest.json" "$plugin_dir/manifest.json"
@@ -461,14 +569,23 @@ if [ "$PERSONAL" -eq 1 ]; then
   # and VaapiOnNvidiaGPUs bypass that, letting libva-nvidia-driver (installed
   # below) actually get used for decode instead of falling back to software.
   # Only meaningful with an NVIDIA GPU, hence personal-only.
-  if confirm "Enable NVIDIA hardware video decode flags for Chromium ($CONFIG_DIR/chromium-flags.conf)?"; then
+  say "NVIDIA video decode for Chromium: Chromium's VA-API wrapper skips"
+  say "  any driver literally named 'nvidia' by default, so hardware video"
+  say "  decode silently falls back to software (higher CPU/power use) on"
+  say "  an NVIDIA GPU. These flags (VaapiIgnoreDriverChecks,"
+  say "  VaapiOnNvidiaGPUs) bypass that check, letting libva-nvidia-driver"
+  say "  actually get used, in $CONFIG_DIR/chromium-flags.conf."
+  if confirm "Enable NVIDIA hardware video decode flags for Chromium?"; then
     link "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"
     warn "chromium-flags.conf may get overwritten by omarchy-refresh-chromium; re-run install.sh -p if so"
   else
     say "skipped Chromium hardware video decode flags"
   fi
 
-  if [ -f "$REPO/packages-personal.txt" ] && confirm "Install the personal package list (gaming, virtualization, NVIDIA drivers, work apps) via omarchy pkg add?"; then
+  say "Personal package list: the author's full package set for this kind"
+  say "  of machine (gaming, virtualization, NVIDIA drivers, work apps),"
+  say "  installed via 'omarchy pkg add' from packages-personal.txt."
+  if [ -f "$REPO/packages-personal.txt" ] && confirm "Install the personal package list?"; then
     say "installing personal packages"
     mapfile -t pkgs < <(grep -vE '^\s*(#|$)' "$REPO/packages-personal.txt")
     omarchy pkg add "${pkgs[@]}"
