@@ -86,13 +86,21 @@ if ! command -v omarchy >/dev/null 2>&1; then
   exit 1
 fi
 
-say "This installs my personal Omarchy setup, one piece at a time."
-say "Each step below explains what it does, then asks yes/no; say no to skip it. Nothing here is silent: every change is announced as it happens, and anything it would overwrite is backed up next to itself first."
+say "This installs the omarchy-shakir config, one piece at a time."
+say "Each step below explains what it does, then asks yes/no; say no to skip it."
+say "  Nothing here is silent: every change is announced as it happens, and"
+say "  anything it would overwrite is backed up next to itself first."
 [ "$PERSONAL" -eq 1 ] && say "Running with --personal: machine-specific steps (monitor layout, full package list) will be offered too."
 printf '\n'
 
 # 1. Keybindings and look'n'feel -------------------------------------------- #
-say "Keybindings and look'n'feel: adds my keybindings on top of Omarchy's defaults, plus two visual tweaks: a slight overshoot on window-move animations, and blur turned on (used by the golden-spiral dock; Omarchy ships this off)."
+say "Keybindings and look'n'feel: adds these on top of Omarchy's defaults:"
+say "  - SUPER+SPACE: Spotlight-style app search (was: Omarchy root menu)"
+say "  - SUPER+ALT+SPACE: Omarchy root menu (moved here)"
+say "  - Media Play key: launch/play Spotify (was: play/pause current media)"
+say "  - Media Stop key: stop Spotify, double-press to quit"
+say "  - Window-move animation gets a slight overshoot instead of a hard snap"
+say "  - Blur turned on for the golden-spiral dock (Omarchy ships this off)"
 if confirm "Install bindings.lua and looknfeel.lua into $HYPR_DIR?"; then
   link "$REPO/config/hypr/bindings.lua" "$HYPR_DIR/bindings.lua"
   link "$REPO/config/hypr/looknfeel.lua" "$HYPR_DIR/looknfeel.lua"
