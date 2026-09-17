@@ -375,6 +375,18 @@ else
   say "omarchy-reboot-to-windows not installed, nothing to do"
 fi
 
+WINDOWS_STATE_FILE="$HOME/.local/state/omarchy-shakir/windows-boot-guid"
+if [ -f "$WINDOWS_STATE_FILE" ]; then
+  if confirm "Remove the saved Windows dual-boot choice ($WINDOWS_STATE_FILE)?"; then
+    rm -f "$WINDOWS_STATE_FILE"
+    say "removed $WINDOWS_STATE_FILE"
+  else
+    say "left the saved Windows dual-boot choice in place"
+  fi
+else
+  say "no saved Windows dual-boot choice, nothing to do"
+fi
+
 if [ -f "$REPO/packages-personal.txt" ] && command -v omarchy >/dev/null 2>&1; then
   warn "removing the personal package list can remove GPU drivers and other packages other software depends on"
   if confirm "Remove the personal package list (gaming, virtualization, NVIDIA drivers, work apps) via omarchy pkg drop?"; then

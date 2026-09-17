@@ -1,13 +1,8 @@
 #!/bin/bash
 # Reboots straight into Windows: sets the UEFI BootNext variable to
-# whichever Windows Boot Manager entry efibootmgr reports, then reboots.
-# BootNext is one-shot, so BootOrder (and Omarchy as the regular default)
-# is untouched for every boot after this one.
-#
-# Detection mirrors install.sh's Limine dual-boot step: prefer a
-# distinctive entry name over the generic "Windows Boot Manager" label,
-# since the generic one is more often a stale leftover from a
-# since-removed drive.
+# whichever Windows Boot Manager entry omarchy-pick-windows-boot-entry
+# picks, then reboots. BootNext is one-shot, so BootOrder (and Omarchy as
+# the regular default) is untouched for every boot after this one.
 #
 # Setting BootNext needs sudo (efibootmgr writes NVRAM directly), and the
 # System menu triggers this with no attached terminal, so this falls back
@@ -28,30 +23,15 @@ if [ ! -t 0 ] && [ ! -t 1 ] && ! sudo -n true 2>/dev/null; then
   exit 1
 fi
 
-# Each match is "<boot id>\t<entry name>\t<partition GUID>", one per
-# Windows Boot Manager entry found; a dual-boot machine can have more than
-# one (a stale entry from a previous install is common). Using mapfile
-# over a process substitution, rather than a plain $(...) capture, means
-# efibootmgr's own exit status (nonzero on some machines even when its
-# output is complete) can't trip `set -e` here.
-mapfile -t win_entries < <(efibootmgr -v 2>/dev/null \
-  | grep -i 'bootmgfw\.efi' \
-  | sed -E 's/^Boot([0-9A-Fa-f]{4})\*? +(.*)'$'\t''HD\([0-9]+,GPT,([0-9a-fA-F-]+),.*/\1'$'\t''\2'$'\t''\3/' \
-  | awk -F'\t' '!seen[$3]++')
+# This script is normally invoked through a symlink in ~/.local/bin;
+# resolve back to its real location so its sibling picker script is found
+# regardless of where it was called from.
+script_dir="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 
-if [ "${#win_entries[@]}" -eq 0 ]; then
-  warn "no Windows Boot Manager entry found in efibootmgr; nothing to reboot into"
+if ! pick="$("$script_dir/omarchy-pick-windows-boot-entry")"; then
+  warn "no Windows Boot Manager entry resolved (none found, or more than one with nothing chosen; re-run install.sh to choose); nothing to reboot into"
   exit 1
 fi
-
-pick="${win_entries[0]}"
-for entry in "${win_entries[@]}"; do
-  IFS=$'\t' read -r _ name _ <<< "$entry"
-  if [ "$name" != "Windows Boot Manager" ]; then
-    pick="$entry"
-    break
-  fi
-done
 IFS=$'\t' read -r id name _ <<< "$pick"
 
 sudo efibootmgr --bootnext "$id" >/dev/null

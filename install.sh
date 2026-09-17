@@ -154,7 +154,47 @@ else
   say "skipped numlock setup"
 fi
 
-# 5. Limine boot menu: real timeout + auto-detected Windows entry ------------ #
+# 5. Windows dual-boot: pick which entry, if more than one --------------------- #
+# Not personal-only, and independent of whether the Limine and System-menu
+# steps below are used or even applicable on this machine. There's no
+# UEFI-level "most recently booted" to sort out which Windows Boot Manager
+# entry is the real one when there's more than one (a stale leftover from
+# a previous install, or a since-removed drive, is common) -- firmware
+# doesn't track that -- so this asks once and saves the answer; the steps
+# below only offer anything Windows-related once this (or a single
+# unambiguous entry) resolves. Declining, or a non-interactive run, just
+# leaves those steps with nothing to offer this time, rather than
+# guessing which entry is real.
+if command -v efibootmgr >/dev/null 2>&1; then
+  chmod +x "$REPO/bin/omarchy-pick-windows-boot-entry"
+  if ! "$REPO/bin/omarchy-pick-windows-boot-entry" >/dev/null 2>&1; then
+    mapfile -t win_entries < <("$REPO/bin/omarchy-pick-windows-boot-entry" --list 2>/dev/null)
+    if [ "${#win_entries[@]}" -gt 1 ]; then
+      say "Windows dual-boot: efibootmgr reports more than one Windows Boot Manager entry. Picking one feeds both the Limine boot menu entry and the System menu's Reboot to Windows entry below; skipping this leaves both with nothing to offer this run."
+      i=1
+      for entry in "${win_entries[@]}"; do
+        IFS=$'\t' read -r _ name _ <<< "$entry"
+        printf '  %d) %s\n' "$i" "$name"
+        i=$((i + 1))
+      done
+      choice=""
+      if [ -t 0 ] || [ -e /dev/tty ]; then
+        read -r -p "Which one is your real Windows install? [1-${#win_entries[@]}, blank to skip] " choice < /dev/tty
+      fi
+      if [ -n "$choice" ] && [ "$choice" -ge 1 ] 2>/dev/null && [ "$choice" -le "${#win_entries[@]}" ] 2>/dev/null; then
+        IFS=$'\t' read -r _ picked_name picked_guid <<< "${win_entries[$((choice - 1))]}"
+        WINDOWS_STATE_FILE="$HOME/.local/state/omarchy-shakir/windows-boot-guid"
+        mkdir -p "$(dirname "$WINDOWS_STATE_FILE")"
+        printf '%s\n' "$picked_guid" > "$WINDOWS_STATE_FILE"
+        say "saved '$picked_name' as the Windows entry to use"
+      else
+        say "no choice made; the Limine and System-menu Windows steps below will have nothing to offer this run"
+      fi
+    fi
+  fi
+fi
+
+# 6. Limine boot menu: real timeout + Windows dual-boot entry ---------------- #
 LIMINE_CONF="/boot/limine.conf"
 if [ ! -f "$LIMINE_CONF" ]; then
   warn "no $LIMINE_CONF, skipping Limine setup (not using Limine, or ESP mounted elsewhere)"
@@ -190,36 +230,12 @@ elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (backs it
   fi
 
   if command -v efibootmgr >/dev/null 2>&1 && ! grep -q '^/+Windows' "$LIMINE_CONF"; then
-    # Each match is "<boot entry name>\t<partition GUID>", one per Windows
-    # Boot Manager entry found. A machine can have more than one (a stale
-    # entry from a previous install is common), so this is a list, not a
-    # single value.
-    mapfile -t win_entries < <(efibootmgr -v 2>/dev/null \
-      | grep -i 'bootmgfw\.efi' \
-      | sed -E 's/^Boot[0-9A-Fa-f]{4}\*? +(.*)'$'\t''HD\([0-9]+,GPT,([0-9a-fA-F-]+),.*/\1'$'\t''\2/' \
-      | awk -F'\t' '!seen[$2]++')
-    if [ "${#win_entries[@]}" -eq 0 ]; then
-      say "no Windows Boot Manager found in efibootmgr, skipping dual-boot entry"
+    # Same picker step 5 above already made executable and, if there was
+    # more than one entry, already asked about; this just uses its answer.
+    if ! pick="$("$REPO/bin/omarchy-pick-windows-boot-entry")"; then
+      say "no Windows Boot Manager entry resolved (none found, or more than one with nothing chosen in step 5), skipping dual-boot entry"
     else
-      # Prefer an entry with a distinctive name over the generic
-      # "Windows Boot Manager" label, since the generic one is more often
-      # the stale leftover. Falls back to whichever efibootmgr listed first.
-      pick="${win_entries[0]}"
-      for entry in "${win_entries[@]}"; do
-        if [ "${entry%%$'\t'*}" != "Windows Boot Manager" ]; then
-          pick="$entry"
-          break
-        fi
-      done
-      name="${pick%%$'\t'*}"
-      guid="${pick##*$'\t'}"
-      if [ "${#win_entries[@]}" -gt 1 ]; then
-        warn "multiple Windows Boot Manager entries found, using: $name ($guid)"
-        for entry in "${win_entries[@]}"; do
-          [ "$entry" = "$pick" ] && continue
-          printf '   also found: %s (%s)\n' "${entry%%$'\t'*}" "${entry##*$'\t'}"
-        done
-      fi
+      IFS=$'\t' read -r _ name guid <<< "$pick"
       if confirm "Add a Limine entry chainloading '$name' at partition $guid?"; then
         limine_backup
         {
@@ -238,7 +254,7 @@ else
   say "skipped Limine timeout"
 fi
 
-# 6. Fix Right Ctrl in Remmina (remap host key) ------------------------------ #
+# 7. Fix Right Ctrl in Remmina (remap host key) ------------------------------ #
 REMMINA_PREF="$CONFIG_DIR/remmina/remmina.pref"
 if [ -f "$REMMINA_PREF" ]; then
   if confirm "Fix Right Ctrl in Remmina (remap host key from Right Ctrl to Scroll Lock in $REMMINA_PREF; Right Ctrl as Host key swallows Ctrl+Shift+Arrow and other right-Ctrl combos before they reach the remote session)?"; then
@@ -253,7 +269,7 @@ if [ -f "$REMMINA_PREF" ]; then
   fi
 fi
 
-# 7. Remmina: default new RDP connections to local audio redirect ------------ #
+# 8. Remmina: default new RDP connections to local audio redirect ------------ #
 if [ -f "$REMMINA_PREF" ]; then
   if confirm "Default new Remmina RDP connections to redirecting remote audio to this computer's speakers (sound=local in $REMMINA_PREF)?"; then
     if pgrep -x remmina >/dev/null 2>&1; then
@@ -271,7 +287,7 @@ if [ -f "$REMMINA_PREF" ]; then
   fi
 fi
 
-# 8. XWayland: make the largest connected monitor the primary output -------- #
+# 9. XWayland: make the largest connected monitor the primary output -------- #
 if confirm "Install xwayland-primary-monitor into $BIN_DIR and run it at session start (fixes Steam/Proton games defaulting to a smaller or rotated secondary monitor under XWayland)?"; then
   link "$REPO/bin/xwayland-primary-monitor" "$BIN_DIR/xwayland-primary-monitor"
   chmod +x "$REPO/bin/xwayland-primary-monitor"
@@ -280,7 +296,7 @@ else
   say "skipped xwayland-primary-monitor"
 fi
 
-# 9. Plymouth boot/unlock screen: matches the theme, plus a signature ------- #
+# 10. Plymouth boot/unlock screen: matches the theme, plus a signature ------- #
 # Not personal-only: Plymouth theming has nothing to do with author-specific
 # hardware, it just recolors whichever Omarchy theme is currently selected,
 # so anyone running Omarchy benefits.
@@ -318,12 +334,15 @@ else
   say "skipped Plymouth boot screen customization"
 fi
 
-# 10. System menu: add a "Reboot to Windows" entry ---------------------------- #
+# 11. System menu: add a "Reboot to Windows" entry ---------------------------- #
 # Not personal-only: the row only ever shows up in the menu when efibootmgr
 # reports a Windows Boot Manager entry (see the "when" condition in
 # config/omarchy/omarchy-menu.jsonc), so it's inert on a machine without one;
-# this check just avoids asking about it at all in that case.
-if command -v efibootmgr >/dev/null 2>&1 && efibootmgr -v 2>/dev/null | grep -qi 'bootmgfw\.efi'; then
+# this check just avoids asking about it at all in that case. Same picker
+# bin/omarchy-reboot-to-windows itself uses (and step 5 above already made
+# executable and, if needed, asked about), so "is there one to offer" and
+# "which one gets used" never disagree.
+if command -v efibootmgr >/dev/null 2>&1 && "$REPO/bin/omarchy-pick-windows-boot-entry" >/dev/null 2>&1; then
   say "System menu: adds a 'Reboot to Windows' entry that sets the UEFI BootNext flag to whichever Windows Boot Manager entry efibootmgr reports, then reboots. One-shot: BootOrder (and Omarchy as the regular default) is untouched for every boot after that. Needs sudo, same as the reboot/shutdown entries already there."
   if confirm "Add it?"; then
     mkdir -p "$BIN_DIR"
@@ -336,10 +355,10 @@ if command -v efibootmgr >/dev/null 2>&1 && efibootmgr -v 2>/dev/null | grep -qi
     say "skipped the Reboot to Windows menu entry"
   fi
 else
-  say "no Windows Boot Manager found in efibootmgr, skipping the Reboot to Windows menu entry"
+  say "no Windows Boot Manager entry resolved (none found, or more than one with nothing chosen in step 5), skipping the Reboot to Windows menu entry"
 fi
 
-# 11. Personal-only: monitor layout, Chromium flags, full package list ------- #
+# 12. Personal-only: monitor layout, Chromium flags, full package list ------- #
 if [ "$PERSONAL" -eq 1 ]; then
   if confirm "Install personal monitor layout (hardcoded for the author's hardware) into $HYPR_DIR/monitors.lua?"; then
     link "$REPO/config/hypr/monitors.lua.personal" "$HYPR_DIR/monitors.lua"

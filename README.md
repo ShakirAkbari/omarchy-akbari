@@ -22,9 +22,15 @@ boot menu that actually shows up and can chainload Windows.
 |                                       /etc/systemd/system/,      |
 |                                       /usr/share/sddm/           |
 |                                       hyprland.lua (backed up)   |
+|  Windows dual-boot entry      ---->  ~/.local/state/            |
+|                                       omarchy-shakir/             |
+|                                       windows-boot-guid (only     |
+|                                       asked about when            |
+|                                       efibootmgr reports more     |
+|                                       than one)                   |
 |  Limine timeout + Windows     ---->  /boot/limine.conf           |
-|                                       (auto-detected via         |
-|                                        efibootmgr, asks first)   |
+|                                       (uses the entry above,      |
+|                                        asks first)                |
 |  Remmina Host key             ---->  ~/.config/remmina/          |
 |                                       remmina.pref (Right Ctrl    |
 |                                       -> Scroll Lock, if present) |
@@ -75,6 +81,15 @@ boot screen theming, the System menu's Reboot to Windows entry, and each
 personal-only piece), so you can decline anything you don't want on a given
 run. Piped in with no terminal attached (`curl ... | bash`), every question
 defaults to no.
+
+One step is a numbered choice instead of yes/no: if efibootmgr reports more
+than one Windows Boot Manager entry (a stale leftover from a previous
+install, or a since-removed drive, is common), it asks which one is your
+real Windows install and remembers the answer. The Limine dual-boot entry
+and the System menu's Reboot to Windows entry both depend on this
+resolving to exactly one entry, so on a machine with more than one and no
+answer given (or none to begin with), those two steps have nothing to
+offer that run rather than guessing.
 
 Re-running is safe and does not create duplicates: existing files it would
 overwrite get backed up next to themselves as `<file>.bak.<timestamp>`

@@ -1,0 +1,62 @@
+#!/bin/bash
+# Prints the UEFI boot id, name, and partition GUID of "the" Windows Boot
+# Manager entry, tab-separated, one line, to stdout:
+#   <id>\t<name>\t<guid>
+# Exits 1 with nothing on stdout if efibootmgr reports no such entry, or
+# reports more than one and none matches a saved choice.
+#
+# Usage: omarchy-pick-windows-boot-entry [--list]
+#   --list   Print every Windows Boot Manager entry found instead of
+#            picking one, one "<id>\t<name>\t<guid>" line each, in the
+#            order efibootmgr reports them. Used by install.sh to build
+#            the choice it asks about when there's more than one.
+#
+# A dual-boot machine can carry more than one Windows Boot Manager entry
+# (a stale leftover from a previous install, or a since-removed drive, is
+# common), and there's no UEFI-level "most recently booted" to sort that
+# out automatically -- firmware doesn't track it. So with more than one
+# entry, this only resolves when install.sh already asked and saved that
+# choice (STATE_FILE below); a single entry needs no saved choice at all,
+# since there's nothing to disambiguate. Anything else (zero entries, or
+# more than one with nothing saved) exits 1 rather than guessing: every
+# caller of this script -- the Limine dual-boot step and
+# bin/omarchy-reboot-to-windows -- is itself only ever installed by
+# install.sh after this already resolved, so there's no running system
+# that needs a guess to avoid ending up broken.
+set -euo pipefail
+
+STATE_FILE="$HOME/.local/state/omarchy-shakir/windows-boot-guid"
+
+# Each match is "<boot id>\t<entry name>\t<partition GUID>". Using mapfile
+# over a process substitution, rather than a plain $(...) capture, means
+# efibootmgr's own exit status (nonzero on some machines even when its
+# output is complete) can't trip `set -e` here.
+mapfile -t entries < <(efibootmgr -v 2>/dev/null \
+  | grep -i 'bootmgfw\.efi' \
+  | sed -E 's/^Boot([0-9A-Fa-f]{4})\*? +(.*)'$'\t''HD\([0-9]+,GPT,([0-9a-fA-F-]+),.*/\1'$'\t''\2'$'\t''\3/' \
+  | awk -F'\t' '!seen[$3]++')
+
+[ "${#entries[@]}" -gt 0 ] || exit 1
+
+if [ "${1:-}" = "--list" ]; then
+  printf '%s\n' "${entries[@]}"
+  exit 0
+fi
+
+if [ "${#entries[@]}" -eq 1 ]; then
+  printf '%s\n' "${entries[0]}"
+  exit 0
+fi
+
+if [ -s "$STATE_FILE" ]; then
+  saved_guid="$(cat "$STATE_FILE")"
+  for entry in "${entries[@]}"; do
+    IFS=$'\t' read -r _ _ guid <<< "$entry"
+    if [ "$guid" = "$saved_guid" ]; then
+      printf '%s\n' "$entry"
+      exit 0
+    fi
+  done
+fi
+
+exit 1

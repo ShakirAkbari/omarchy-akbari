@@ -5,12 +5,21 @@
 - Adds a "Reboot to Windows" entry to the Omarchy System menu
   (`bin/omarchy-reboot-to-windows`, wired in via
   `config/omarchy/omarchy-menu.jsonc`): sets the UEFI BootNext flag to
-  whichever Windows Boot Manager entry `efibootmgr` reports (preferring a
-  distinctive name over the generic "Windows Boot Manager" label, same
-  detection as the Limine dual-boot step below) and reboots. BootNext is
-  one-shot, so BootOrder, and Omarchy as the regular default, is untouched
-  on every boot after that. Only offered by `install.sh`, and only shows in
-  the menu, on a machine efibootmgr reports a Windows entry for.
+  whichever Windows Boot Manager entry `efibootmgr` reports and reboots.
+  BootNext is one-shot, so BootOrder, and Omarchy as the regular default,
+  is untouched on every boot after that. Only offered by `install.sh`, and
+  only shows in the menu, on a machine efibootmgr reports a Windows entry
+  for.
+- New `bin/omarchy-pick-windows-boot-entry`: resolves which Windows Boot
+  Manager entry is "the" one to use, shared by `install.sh`'s Limine
+  dual-boot step and `omarchy-reboot-to-windows` so both agree instead of
+  running their own copy of the logic. A machine can carry more than one
+  such entry (a stale leftover from a previous install, or a
+  since-removed drive, is common), and there's no UEFI-level "most
+  recently booted" to sort that out automatically, so `install.sh` asks
+  once (a new step 5) and saves the choice; a single entry needs no
+  asking. Neither Windows step below offers anything until this resolves,
+  rather than guessing.
 - `install.sh`: the Limine boot menu step now also renames the lowercase
   `linux` kernel entry (and its Snapper history entries) to `Arch Linux`,
   matching the title case of the `Omarchy` and `Windows 11` entries
