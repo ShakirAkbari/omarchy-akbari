@@ -1,6 +1,6 @@
 # omarchy-shakir
 
-Post-install setup for [Omarchy](https://omarchy.org). Run this once after a
+A post-install setup for [Omarchy](https://omarchy.org). Run this once after a
 fresh Omarchy install and it gets a machine to the state I actually use:
 keybindings, look'n'feel, the [golden-spiral layout](https://github.com/ShakirAkbari/hypr-goldenspiral)
 and its taskbar, numlock on before you ever see a login screen, and a Limine
