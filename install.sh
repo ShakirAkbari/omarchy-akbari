@@ -248,11 +248,15 @@ LIMINE_CONF="/boot/limine.conf"
 say "Limine boot menu: Omarchy's default Limine config has no real timeout"
 say "  (0, or unset), so the boot menu flashes past before you can pick an"
 say "  entry unless you're already holding a key down. This sets a real"
-say "  5-second timeout instead, and backs up $LIMINE_CONF first."
+say "  5-second timeout instead, and backs up $LIMINE_CONF first. (/boot is"
+say "  root-only, so even checking the file needs sudo.)"
 say "  Also renames bare 'linux' kernel entries to 'Arch Linux' in the menu,"
 say "  and, if a Windows Boot Manager entry was resolved in step 5, offers"
 say "  to add a chainload entry for it."
-if [ ! -f "$LIMINE_CONF" ]; then
+# /boot is usually root-only (the ESP is mounted with umask 0077), so every
+# read of the file goes through sudo; a plain [ -f ] or grep as the user would
+# see nothing there and silently skip this whole step.
+if ! sudo test -f "$LIMINE_CONF"; then
   warn "no $LIMINE_CONF, skipping Limine setup (not using Limine, or ESP mounted elsewhere)"
 elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (needs sudo)?"; then
   # Only back up once per run, and only if a write actually happens below,
@@ -266,10 +270,10 @@ elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (needs su
     fi
   }
 
-  if grep -qE '^timeout: *(0|no) *$' "$LIMINE_CONF" 2>/dev/null || \
-     ! grep -qE '^timeout:' "$LIMINE_CONF" 2>/dev/null; then
+  if sudo grep -qE '^timeout: *(0|no) *$' "$LIMINE_CONF" 2>/dev/null || \
+     ! sudo grep -qE '^timeout:' "$LIMINE_CONF" 2>/dev/null; then
     limine_backup
-    if grep -qE '^#?timeout:' "$LIMINE_CONF"; then
+    if sudo grep -qE '^#?timeout:' "$LIMINE_CONF"; then
       sudo sed -i -E 's/^#?timeout:.*/timeout: 5/' "$LIMINE_CONF"
     else
       printf 'timeout: 5\n' | sudo tee -a "$LIMINE_CONF" > /dev/null
@@ -279,13 +283,13 @@ elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (needs su
     say "Limine timeout already active, left as-is"
   fi
 
-  if grep -qE '^[[:space:]]*/+linux[[:space:]]*$' "$LIMINE_CONF" 2>/dev/null; then
+  if sudo grep -qE '^[[:space:]]*/+linux[[:space:]]*$' "$LIMINE_CONF" 2>/dev/null; then
     limine_backup
     sudo sed -i -E 's|^([[:space:]]*/+)linux[[:space:]]*$|\1Arch Linux|' "$LIMINE_CONF"
     say "renamed 'linux' kernel entries to 'Arch Linux' in the boot menu"
   fi
 
-  if command -v efibootmgr >/dev/null 2>&1 && ! grep -q '^/+Windows' "$LIMINE_CONF"; then
+  if command -v efibootmgr >/dev/null 2>&1 && ! sudo grep -q '^/+Windows' "$LIMINE_CONF"; then
     # Same picker step 5 above already made executable and, if there was
     # more than one entry, already asked about; this just uses its answer.
     if ! pick="$("$REPO/bin/omarchy-pick-windows-boot-entry")"; then

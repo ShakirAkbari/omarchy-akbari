@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `install.sh` and `uninstall.sh`: fix the Limine step silently doing
+  nothing. `/boot` is root-only on a stock Omarchy install (the ESP is
+  mounted with umask 0077), so `[ -f /boot/limine.conf ]` and the `grep`
+  checks run as the user all failed, and the step reported "no
+  /boot/limine.conf, skipping" with the timeout and Windows entry never
+  applied. Every read of the file now goes through `sudo`.
 - `install.sh -p`: new services step after the package list. Asks about
   enabling and starting `libvirtd`, `tailscaled`, `coolercontrold` and
   `ollama` one by one (skipping any whose package isn't installed or

@@ -160,9 +160,10 @@ else
 fi
 
 # 5. Limine: remove the Windows entry this repo added ------------------------- #
-if [ ! -f "$LIMINE_CONF" ]; then
+# /boot is usually root-only, so reads of it need sudo (see install.sh).
+if ! sudo test -f "$LIMINE_CONF"; then
   say "no $LIMINE_CONF, nothing to do"
-elif ! grep -q 'comment: added by omarchy-shakir' "$LIMINE_CONF" 2>/dev/null; then
+elif ! sudo grep -q 'comment: added by omarchy-shakir' "$LIMINE_CONF" 2>/dev/null; then
   say "no omarchy-shakir Limine entry found, nothing to do"
   warn "the Limine timeout (if set to 5s) is left as is; restore a /boot/limine.conf.bak.* if you want it back"
 elif confirm "Remove the Windows entry this repo added to $LIMINE_CONF (backs it up first, needs sudo)?"; then
@@ -184,7 +185,7 @@ elif confirm "Remove the Windows entry this repo added to $LIMINE_CONF (backs it
     }
     { print }
     END { if (buf != "" && !skip) printf "%s", buf }
-  ' "$LIMINE_CONF" > "$tmp"
+  ' <(sudo cat "$LIMINE_CONF") > "$tmp"
   sudo cp "$tmp" "$LIMINE_CONF"
   rm -f "$tmp"
   say "removed the Windows entry from $LIMINE_CONF"
