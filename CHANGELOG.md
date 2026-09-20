@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `install.sh`: the personal package list (`-p`) installed nothing, because
+  `omarchy pkg add` is pacman-only and one AUR entry (e.g. `coolercontrol`,
+  `zoom`) made pacman abort the whole transaction with `target not found`.
+  Packages are now split by `pacman -Si` into repo packages
+  (`omarchy pkg add`) and AUR packages (`omarchy pkg aur add`). Each
+  package not already installed is now asked about individually, and only
+  the ones answered yes are installed.
 - `install.sh`: the NVIDIA hardware video decode Chromium flags
   (`chromium-flags.conf`) are no longer gated behind `-p`/`--personal`.
   `install.sh` now detects an NVIDIA GPU itself (`lspci -d '10de:'`) and

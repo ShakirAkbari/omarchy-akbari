@@ -596,12 +596,32 @@ if [ "$PERSONAL" -eq 1 ]; then
   fi
 
   say "Personal package list: the author's full package set for this kind"
-  say "  of machine (gaming, virtualization, NVIDIA drivers, work apps),"
-  say "  installed via 'omarchy pkg add' from packages-personal.txt."
-  if [ -f "$REPO/packages-personal.txt" ] && confirm "Install the personal package list?"; then
-    say "installing personal packages"
+  say "  of machine (gaming, virtualization, NVIDIA drivers, work apps)."
+  say "  Each package from packages-personal.txt is asked about one by one;"
+  say "  ones already installed are skipped."
+  if [ -f "$REPO/packages-personal.txt" ] && confirm "Go through the personal package list?"; then
     mapfile -t pkgs < <(grep -vE '^\s*(#|$)' "$REPO/packages-personal.txt")
-    omarchy pkg add "${pkgs[@]}"
+    repo_pkgs=() aur_pkgs=()
+    for pkg in "${pkgs[@]}"; do
+      pacman -Qq "$pkg" >/dev/null 2>&1 && continue
+      # 'omarchy pkg add' is pacman-only, and pacman aborts the whole
+      # transaction on one unresolvable target, so AUR packages have to be
+      # split out or nothing installs at all.
+      if pacman -Si "$pkg" >/dev/null 2>&1; then
+        confirm "Install $pkg?" && repo_pkgs+=("$pkg")
+      else
+        confirm "Install $pkg (AUR)?" && aur_pkgs+=("$pkg")
+      fi
+    done
+    if [ "${#repo_pkgs[@]}" -gt 0 ]; then
+      say "installing repo packages: ${repo_pkgs[*]}"
+      omarchy pkg add "${repo_pkgs[@]}" || warn "some repo packages failed to install"
+    fi
+    if [ "${#aur_pkgs[@]}" -gt 0 ]; then
+      say "installing AUR packages: ${aur_pkgs[*]}"
+      omarchy pkg aur add "${aur_pkgs[@]}" || warn "some AUR packages failed to install"
+    fi
+    [ "${#repo_pkgs[@]}" -eq 0 ] && [ "${#aur_pkgs[@]}" -eq 0 ] && say "no packages selected"
   else
     say "skipped personal package list"
   fi
