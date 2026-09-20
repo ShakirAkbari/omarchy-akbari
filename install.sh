@@ -625,6 +625,29 @@ if [ "$PERSONAL" -eq 1 ]; then
   else
     say "skipped personal package list"
   fi
+
+  say "Services: the packages above install their daemons disabled. Each one"
+  say "  is asked about separately, and skipped if its package isn't installed"
+  say "  or the service is already enabled."
+  for entry in \
+    "libvirt:libvirtd.service:virtual machines for virt-manager" \
+    "tailscale:tailscaled.service:Tailscale VPN daemon" \
+    "coolercontrol:coolercontrold.service:CoolerControl fan and cooling daemon" \
+    "ollama-cuda:ollama.service:local LLM server"; do
+    IFS=: read -r svc_pkg svc_unit svc_desc <<< "$entry"
+    pacman -Qq "$svc_pkg" >/dev/null 2>&1 || continue
+    systemctl is-enabled --quiet "$svc_unit" 2>/dev/null && continue
+    if confirm "Enable and start $svc_unit ($svc_desc)?"; then
+      sudo systemctl enable --now "$svc_unit" || warn "could not enable $svc_unit"
+    fi
+  done
+
+  if pacman -Qq libvirt >/dev/null 2>&1 && ! id -nG "$USER" | tr ' ' '\n' | grep -qx libvirt; then
+    if confirm "Add $USER to the libvirt group (manage VMs without sudo)?"; then
+      sudo usermod -aG libvirt "$USER" || warn "could not add $USER to the libvirt group"
+      say "added to libvirt; log out and back in for it to take effect"
+    fi
+  fi
 fi
 
 echo

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- `install.sh -p`: new services step after the package list. Asks about
+  enabling and starting `libvirtd`, `tailscaled`, `coolercontrold` and
+  `ollama` one by one (skipping any whose package isn't installed or
+  whose unit is already enabled), and offers to add the user to the
+  `libvirt` group.
+- `packages-personal.txt`: dropped `linux-headers`. Omarchy boots
+  `linux-omarchy`, which ships its own headers, so the stock kernel's
+  headers only made DKMS build every module a second time.
 - `install.sh`: the personal package list (`-p`) installed nothing, because
   `omarchy pkg add` is pacman-only and one AUR entry (e.g. `coolercontrol`,
   `zoom`) made pacman abort the whole transaction with `target not found`.

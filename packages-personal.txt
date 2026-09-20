@@ -33,7 +33,6 @@ putty
 dnsmasq
 
 # Hardware drivers / sensors
-linux-headers
 nct6687d-dkms-git
 xpadneo-dkms
 headsetcontrol
