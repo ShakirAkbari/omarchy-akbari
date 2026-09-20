@@ -245,20 +245,17 @@ fi
 
 # 6. Limine boot menu: real timeout + Windows dual-boot entry ---------------- #
 LIMINE_CONF="/boot/limine.conf"
-say "Limine boot menu: Omarchy's default Limine config has no real timeout"
-say "  (0, or unset), so the boot menu flashes past before you can pick an"
-say "  entry unless you're already holding a key down. This sets a real"
-say "  5-second timeout instead, and backs up $LIMINE_CONF first. (/boot is"
-say "  root-only, so even checking the file needs sudo.)"
-say "  Also renames bare 'linux' kernel entries to 'Arch Linux' in the menu,"
-say "  and, if a Windows Boot Manager entry was resolved in step 5, offers"
-say "  to add a chainload entry for it."
+say "Limine boot menu: sets a 5-second timeout (Omarchy's default has none, so"
+say "  the menu flashes past) and can add a Windows entry. Backs up the file first."
 # /boot is usually root-only (the ESP is mounted with umask 0077), so every
 # read of the file goes through sudo; a plain [ -f ] or grep as the user would
-# see nothing there and silently skip this whole step.
-if ! sudo test -f "$LIMINE_CONF"; then
+# see nothing there and silently skip this whole step. The question comes
+# first so the sudo password prompt isn't a surprise.
+if ! confirm "Update the Limine boot menu? (asks for your sudo password)"; then
+  say "skipped Limine timeout"
+elif ! sudo test -f "$LIMINE_CONF"; then
   warn "no $LIMINE_CONF, skipping Limine setup (not using Limine, or ESP mounted elsewhere)"
-elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (needs sudo)?"; then
+else
   # Only back up once per run, and only if a write actually happens below,
   # so re-running with nothing left to change doesn't pile up .bak files.
   limine_backed_up=0
@@ -311,8 +308,6 @@ elif confirm "Set a real Limine boot menu timeout (5s) in $LIMINE_CONF (needs su
       fi
     fi
   fi
-else
-  say "skipped Limine timeout"
 fi
 
 # 7. Fix Right Ctrl in Remmina (remap host key) ------------------------------ #
@@ -599,10 +594,8 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped shakir.spotify bar widget"
   fi
 
-  say "Personal package list: the author's full package set for this kind"
-  say "  of machine (gaming, virtualization, NVIDIA drivers, work apps)."
-  say "  Each package from packages-personal.txt is asked about one by one;"
-  say "  ones already installed are skipped."
+  say "Personal packages (gaming, VMs, NVIDIA, work apps): asked one by one,"
+  say "  already-installed ones are skipped."
   if [ -f "$REPO/packages-personal.txt" ] && confirm "Go through the personal package list?"; then
     mapfile -t pkgs < <(grep -vE '^\s*(#|$)' "$REPO/packages-personal.txt")
     repo_pkgs=() aur_pkgs=()
@@ -630,9 +623,7 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped personal package list"
   fi
 
-  say "Services: the packages above install their daemons disabled. Each one"
-  say "  is asked about separately, and skipped if its package isn't installed"
-  say "  or the service is already enabled."
+  say "Services: installed daemons start out disabled; asked one by one."
   for entry in \
     "libvirt:libvirtd.service:virtual machines for virt-manager" \
     "tailscale:tailscaled.service:Tailscale VPN daemon" \
