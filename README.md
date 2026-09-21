@@ -62,6 +62,12 @@ boot menu that actually shows up and can chainload Windows.
 |                                       ~/.local/share/icons/        |
 |                                       (only offered if claude is   |
 |                                       on PATH)                     |
+|  sudo-askpass                  ---->  ~/.local/bin/, plus          |
+|                                       ~/.config/environment.d/     |
+|                                       sudo-askpass.conf: sudo      |
+|                                       shows a zenity password      |
+|                                       dialog when it has no        |
+|                                       terminal to ask on           |
 |  xrdp + icewm (AUR)           ---->  RDP from Windows into a new   |
 |                                       icewm desktop, Tailscale     |
 |                                       only (~/.xinitrc, ufw rule   |
@@ -111,7 +117,7 @@ hardware video decode for Chromium (only offered if an NVIDIA GPU is
 detected; on a machine that also has an AMD or Intel GPU it offers the
 hybrid GPU wrapper instead), Plymouth boot screen theming, the System menu's Reboot to
 Windows entry, the Claude app launcher (only offered if `claude` is on
-your PATH), remote desktop from Windows (only offered if Tailscale is
+your PATH), the graphical sudo password prompt, remote desktop from Windows (only offered if Tailscale is
 installed), the Obsidian vault sync to Google Drive (needs a Google login
 you set up first, see below), and each personal-only piece), so you can decline anything
 you don't want on a given run. Piped in with no terminal attached
@@ -168,6 +174,20 @@ sync automatically on every future theme switch via a hook. See
 [Why plymouth-theme-sync patches the script directly, and how it stays
 synced](#why-plymouth-theme-sync-patches-the-script-directly-and-how-it-stays-synced)
 below for details. Not personal-only: this benefits anyone running Omarchy.
+
+install.sh also offers a graphical sudo password prompt. Anything started
+without a terminal (a `theme-set` hook, a menu entry, a keybinding) has
+nowhere to type a sudo password, so its `sudo` call just fails. With no
+terminal, `sudo` runs the program `SUDO_ASKPASS` points at instead, so this
+installs `sudo-askpass` (a `zenity` password dialog) into `~/.local/bin` and
+sets `SUDO_ASKPASS` for the whole session through
+`~/.config/environment.d/sudo-askpass.conf` (log out and back in to pick it
+up). `sudo` in a terminal never looks at it and still prompts in place. A
+script can set `SUDO_ASKPASS_REASON` to a one-line description, which the
+dialog shows above sudo's prompt, since sudo's own prompt does not say who is
+asking. Without a terminal, `sudo` remembers a password per parent process
+rather than per terminal, so one run that calls `sudo` from several scripts
+can show the dialog more than once. Not personal-only.
 
 install.sh can also set up remote desktop from Windows, over Tailscale only
 (needs Tailscale installed and logged in; `-p` does that first). It is two
@@ -433,10 +453,13 @@ theme set`, passing the new theme's slug as `$1`), so it reruns on its own
 after every future theme switch, receiving exactly the argument
 `plymouth-theme-sync` already expects. A hook has no terminal to answer a
 sudo password prompt (the theme switcher itself is a graphical, non-terminal
-trigger), and this setup has no askpass helper or polkit agent configured
-either, so `plymouth-theme-sync` only proceeds unattended when sudo can
-already go non-interactively (a still-warm credential cache, `sudo -n true`).
-Otherwise, rather than hanging on a prompt nothing can answer, it opens a
+trigger), so `plymouth-theme-sync` proceeds unattended when sudo can already
+go non-interactively (a still-warm credential cache, `sudo -n true`). When it
+can't, and a `sudo-askpass` helper is available (`$SUDO_ASKPASS`, or
+`~/.local/bin/sudo-askpass`, which the graphical sudo prompt step installs)
+and `DISPLAY` is set, it carries on and sudo asks in a dialog, titled with
+what it is recoloring the boot screen for (`SUDO_ASKPASS_REASON`). Otherwise,
+rather than hanging on a prompt nothing can answer, it opens a
 held-open terminal (`omarchy-launch-terminal`) that re-runs itself there, so
 the sudo prompt lands somewhere you'll see it and the sync still completes;
 if `omarchy-launch-terminal` itself isn't available, it falls back to a

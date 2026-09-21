@@ -27,27 +27,37 @@ if [ -z "$theme" ] && [ -s "$THEME_NAME_FILE" ]; then
 fi
 
 # A hook run from the theme switcher (or any other non-terminal trigger) has
-# no tty, and this setup has no askpass helper or polkit agent either, so a
-# plain sudo would just fail. `/dev/tty` the device node always exists, so
-# checking for it (the original version of this check) never actually
-# detects "no controlling terminal" and let a bare, invisible sudo error
-# kill the hook instead; check stdin *and* stdout being a tty instead, which
-# is false for exactly a backgrounded, non-interactive trigger like this one.
+# no tty, so a plain sudo has nowhere to prompt and would just fail. Check
+# stdin *and* stdout being a tty rather than `/dev/tty` existing (the
+# original version of this check): the device node always exists, so that
+# never detected "no controlling terminal" and let a bare, invisible sudo
+# error kill the hook instead. Both are false for exactly a backgrounded,
+# non-interactive trigger like this one.
 # If sudo can already go non-interactively (a still-warm credential cache),
-# keep running right here. Otherwise, open a held-open terminal that re-runs
-# this same command, so sudo has somewhere to prompt and the sync still
-# happens instead of silently getting skipped; this invocation is done once
-# that terminal is launched.
+# keep running right here. Otherwise, with no terminal, sudo runs the
+# SUDO_ASKPASS program instead (install.sh's graphical sudo prompt step sets
+# it up; the default path is used if this session predates that), which shows
+# a password dialog, so keep running right here too. sudo only does that when
+# DISPLAY is set. Without an askpass helper, open a held-open terminal that
+# re-runs this same command, so sudo has somewhere to prompt and the sync
+# still happens instead of silently getting skipped; this invocation is done
+# once that terminal is launched.
 if [ ! -t 0 ] && [ ! -t 1 ] && ! sudo -n true 2>/dev/null; then
-  if command -v omarchy-launch-terminal >/dev/null 2>&1; then
+  askpass="${SUDO_ASKPASS:-$HOME/.local/bin/sudo-askpass}"
+  if [ -x "$askpass" ] && [ -n "${DISPLAY:-}" ]; then
+    say "no terminal or cached sudo credentials here; sudo will ask in a dialog"
+    export SUDO_ASKPASS="$askpass"
+    export SUDO_ASKPASS_REASON="Recolor the boot screen (Plymouth + SDDM)${theme:+ to match $theme}"
+  elif command -v omarchy-launch-terminal >/dev/null 2>&1; then
     say "no terminal or cached sudo credentials here; opening one to finish the sync"
     omarchy-launch-terminal --title="plymouth-theme-sync" --hold "$0" "$theme"
     exit 0
+  else
+    msg="Plymouth boot screen sync needs sudo and no terminal or cached credentials are available; run 'plymouth-theme-sync${theme:+ $theme}' yourself"
+    warn "$msg"
+    command -v notify-send >/dev/null 2>&1 && notify-send "Boot screen not synced" "$msg"
+    exit 1
   fi
-  msg="Plymouth boot screen sync needs sudo and no terminal or cached credentials are available; run 'plymouth-theme-sync${theme:+ $theme}' yourself"
-  warn "$msg"
-  command -v notify-send >/dev/null 2>&1 && notify-send "Boot screen not synced" "$msg"
-  exit 1
 fi
 
 if [ -n "$theme" ]; then

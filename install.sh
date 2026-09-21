@@ -538,7 +538,35 @@ else
   say "claude not found on PATH, skipping the Claude app launcher"
 fi
 
-# 13. Personal-only: monitor layout, startup workspace, full package list --- #
+# 13. Graphical sudo password prompt ------------------------------------------- #
+# Not personal-only: anything started without a terminal (a theme-set hook, a
+# menu entry, a keybinding) has nowhere to type a sudo password, so its sudo
+# call just fails. sudo already knows what to do about that: with no terminal
+# it runs the program SUDO_ASKPASS points at, so this only supplies one.
+# systemd's environment.d sets the variable for every process in the session
+# (a Hyprland session is one), and sudo in a terminal never looks at it.
+say "Graphical sudo prompt: anything started without a terminal (a theme"
+say "  switch hook, a menu entry, a keybinding) has nowhere to type a sudo"
+say "  password, so its sudo call just fails."
+say "  Installs sudo-askpass, a small zenity dialog, into $BIN_DIR and points"
+say "  SUDO_ASKPASS at it for the whole session via"
+say "  $CONFIG_DIR/environment.d/sudo-askpass.conf. sudo then shows the dialog"
+say "  instead of failing when there is no terminal; sudo in a terminal still"
+say "  prompts in place. Takes effect at your next login."
+if confirm "Install the graphical sudo password prompt?"; then
+  if ! command -v zenity >/dev/null 2>&1; then
+    omarchy pkg add zenity
+  fi
+  mkdir -p "$BIN_DIR"
+  link "$REPO/bin/sudo-askpass" "$BIN_DIR/sudo-askpass"
+  chmod +x "$REPO/bin/sudo-askpass"
+  link "$REPO/config/environment.d/sudo-askpass.conf" "$CONFIG_DIR/environment.d/sudo-askpass.conf"
+  warn "log out and back in so the session picks up SUDO_ASKPASS"
+else
+  say "skipped the graphical sudo password prompt"
+fi
+
+# 14. Personal-only: monitor layout, startup workspace, full package list --- #
 if [ "$PERSONAL" -eq 1 ]; then
   say "Personal monitor layout: hardcodes monitor positions, resolutions,"
   say "  and workspace assignments for the author's own multi-monitor setup"
@@ -748,7 +776,7 @@ if [ "$PERSONAL" -eq 1 ]; then
   fi
 fi
 
-# 14. Remote desktop from Windows, over Tailscale only ------------------------- #
+# 15. Remote desktop from Windows, over Tailscale only ------------------------- #
 # Not personal-only, but after the personal block so a -p run has already set
 # up Tailscale (which this needs) by now. Two independent options, asked
 # separately, because no single server does both jobs on Hyprland: RDP servers

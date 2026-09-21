@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- `install.sh` / `uninstall.sh`: graphical sudo password prompt (step 13;
+  the personal and remote desktop steps are now 14 and 15). Anything started
+  without a terminal (a `theme-set` hook, a menu entry, a keybinding) had
+  nowhere to answer a sudo password, so its `sudo` call failed. With no
+  terminal `sudo` runs the program `SUDO_ASKPASS` names, so:
+  - New `bin/sudo-askpass`: a `zenity` password dialog. `SUDO_ASKPASS_REASON`
+    (optional) puts one line above sudo's prompt saying what needs sudo, since
+    sudo's own prompt does not.
+  - New `config/environment.d/sudo-askpass.conf` sets `SUDO_ASKPASS` for the
+    whole session (read at login). No `sudo -A` or `/etc` change is needed;
+    sudo in a terminal is unaffected.
+  - install.sh installs `zenity` if it is missing, links both files (an
+    existing `~/.local/bin/sudo-askpass` is backed up first) and asks first.
+    `uninstall.sh` removes the links and leaves the `zenity` package.
+  - `plymouth-theme-sync` uses the dialog when it has no terminal, no cached
+    credentials, an askpass helper and `DISPLAY`, instead of opening a
+    terminal; it still opens the terminal when any of those is missing. The
+    README and script comments no longer say this setup has no askpass helper.
 - `install.sh` / `uninstall.sh`: Obsidian vault sync to Google Drive. Keeps
   `~/Documents/Obsidian` in step with `gdrive:Obsidian` using `rclone bisync`,
   run by a user timer every 5 minutes.

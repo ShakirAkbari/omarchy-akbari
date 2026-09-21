@@ -1,0 +1,18 @@
+#!/bin/sh
+# sudo askpass helper: a graphical password dialog for a sudo call that has
+# no terminal to prompt on (a theme-set hook, a menu entry, a keybinding).
+# sudo runs this when SUDO_ASKPASS points at it (or `sudo -A`), passes its own
+# prompt ("[sudo] password for <user>: ") as $1, and reads the password from
+# stdout; a non-zero exit (dialog cancelled) makes sudo give up.
+#
+# SUDO_ASKPASS_REASON (optional): one line saying what needs sudo, shown above
+# the prompt, since sudo's own prompt does not say. Without it the dialog only
+# says "[sudo] password for <user>", with nothing to tell you who is asking.
+if ! command -v zenity >/dev/null 2>&1; then
+  echo "sudo-askpass: zenity is not installed" >&2
+  exit 1
+fi
+prompt="${1:-sudo password:}"
+exec zenity --entry --hide-text --no-markup --title="sudo" \
+  --text="${SUDO_ASKPASS_REASON:+$SUDO_ASKPASS_REASON
+}$prompt" 2>/dev/null

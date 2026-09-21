@@ -28,9 +28,9 @@ keys, hypr-goldenspiral, the numlock-on-boot setup older versions installed
 (cleanup only), the Limine Windows entry,
 xwayland-primary-monitor, Plymouth boot screen theming (and its theme-set
 hook), the System menu's Reboot to Windows entry, the Claude app
-launcher, the Chromium hybrid GPU wrapper, and (if present) the
-personal-only monitor layout, Chromium flags, CoolerControl fan curves,
-web apps, and package list. Also the xrdp and wayvnc remote desktop setups
+launcher, the graphical sudo password prompt, the Chromium hybrid GPU
+wrapper, and (if present) the personal-only monitor layout, Chromium flags,
+CoolerControl fan curves, web apps, and package list. Also the xrdp and wayvnc remote desktop setups
 and the Obsidian vault sync (never your vaults or your Google Drive folder).
 
   -h, --help   Show this help.
@@ -419,6 +419,18 @@ if [ -L "$HOME/.local/share/applications/Claude.desktop" ]; then
   fi
 else
   say "Claude app launcher not installed, nothing to do"
+fi
+
+if [ -L "$BIN_DIR/sudo-askpass" ] || [ -L "$CONFIG_DIR/environment.d/sudo-askpass.conf" ]; then
+  if confirm "Remove the graphical sudo password prompt (sudo-askpass and its SUDO_ASKPASS setting; leaves the zenity package)?"; then
+    unlink_ours "$REPO/bin/sudo-askpass" "$BIN_DIR/sudo-askpass"
+    unlink_ours "$REPO/config/environment.d/sudo-askpass.conf" "$CONFIG_DIR/environment.d/sudo-askpass.conf"
+    warn "log out and back in so the session drops SUDO_ASKPASS"
+  else
+    say "left the graphical sudo password prompt in place"
+  fi
+else
+  say "graphical sudo password prompt not installed, nothing to do"
 fi
 
 WINDOWS_STATE_FILE="$HOME/.local/state/omarchy-akbari/windows-boot-guid"
