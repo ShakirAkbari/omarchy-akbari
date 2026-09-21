@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- `install.sh` / `uninstall.sh`: Chromium hybrid GPU fix. On a machine with
+  an NVIDIA GPU plus an AMD or Intel one, Omarchy's session-wide
+  `LIBVA_DRIVER_NAME=nvidia` made Chromium decode video on the NVIDIA card
+  while it renders on the other GPU, so YouTube video was black or frozen
+  (`Failed to create EGLImage` in the logs, sometimes a GPU process crash).
+  New `bin/chromium` wrapper (unsets `LIBVA_DRIVER_NAME` and `NVD_BACKEND`
+  for Chromium only, linked to `~/.local/bin/chromium`) plus a generated
+  `~/.local/share/applications/chromium.desktop` that launches it. The NVDEC
+  flags step is now only offered on NVIDIA-only machines; on a hybrid one the
+  wrapper is offered instead. On a hybrid machine that already linked
+  `chromium-flags.conf` from an earlier install, the step also offers to
+  remove that link and restore the backed-up Omarchy default flags;
+  `uninstall.sh` removes both pieces.
 - Renamed the project from `omarchy-shakir` to `omarchy-akbari`. Backups,
   the Limine entry comment and the saved-state directory now use the new
   name (`*.bak.omarchy-akbari`, `comment: added by omarchy-akbari`,

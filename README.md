@@ -41,6 +41,11 @@ boot menu that actually shows up and can chainload Windows.
 |                                       chromium-flags.conf (NVIDIA |
 |                                       video decode, only offered  |
 |                                       if an NVIDIA GPU is found)  |
+|  bin/chromium                 ---->  ~/.local/bin/chromium +     |
+|                                       ~/.local/share/applications/|
+|                                       chromium.desktop (NVIDIA +   |
+|                                       AMD/Intel machines: fixes    |
+|                                       black/frozen video)          |
 |  plymouth-theme-sync           ---->  ~/.local/bin/, patches       |
 |                                       /usr/share/plymouth/themes/  |
 |                                       omarchy/omarchy.script       |
@@ -83,7 +88,8 @@ It asks a yes/no question before each step (keybindings, Spotify keys,
 hypr-goldenspiral, Limine, fix Right Ctrl in Remmina (remap host
 key), Remmina's audio redirect default, xwayland-primary-monitor, NVIDIA
 hardware video decode for Chromium (only offered if an NVIDIA GPU is
-detected), Plymouth boot screen theming, the System menu's Reboot to
+detected; on a machine that also has an AMD or Intel GPU it offers the
+hybrid GPU wrapper instead), Plymouth boot screen theming, the System menu's Reboot to
 Windows entry, the Claude app launcher (only offered if `claude` is on
 your PATH), and each personal-only piece), so you can decline anything
 you don't want on a given run. Piped in with no terminal attached
@@ -220,6 +226,35 @@ Not personal-only: `install.sh` detects an NVIDIA GPU itself (`lspci -d
 only applies from a cold start, this needs a full Chromium quit and relaunch
 to take effect, and running `omarchy-refresh-chromium` will overwrite it
 back to the Omarchy default (re-run `install.sh` to restore it).
+
+## Why Chromium gets a wrapper on NVIDIA + AMD/Intel machines
+
+The NVDEC flags above assume Chromium renders on the NVIDIA GPU. On a hybrid
+machine (an NVIDIA card plus an AMD or Intel iGPU) it doesn't: Chromium
+composites on the iGPU, while Omarchy exports `LIBVA_DRIVER_NAME=nvidia` for
+the whole session so its VA-API decodes on the NVIDIA card. Decoded frames
+then can't cross between the two GPUs, and Chromium logs `Failed to create
+EGLImage` and `Unable to initialize binding from pixmap`. On screen that is
+black or frozen video, sometimes with the GPU process crashing (YouTube
+included). Turning VA-API off doesn't help either, since the GPU process
+still crashes.
+
+So on those machines `install.sh` skips the NVDEC flags and instead links
+`bin/chromium` to `~/.local/bin/chromium`. It runs `/usr/bin/chromium` with
+`LIBVA_DRIVER_NAME` and `NVD_BACKEND` unset, so Chromium picks the iGPU's
+VA-API driver. It also writes a copy of the system `chromium.desktop` to
+`~/.local/share/applications/` whose `Exec=` points at the wrapper (a plain
+`env ...` there would not work: `omarchy-launch-browser` only reads the first
+word of `Exec=`). The copy is regenerated from the system file on every `install.sh` run,
+so package updates to the original get picked up. Only Chromium is affected;
+the rest of the session keeps the NVIDIA variables. If an earlier install
+already linked the NVDEC `chromium-flags.conf`, the step also offers to
+remove it and restore the backed-up Omarchy default.
+
+The wrapper is only used when Chromium starts from the launcher or app menu.
+A `chromium` typed in a terminal still resolves to `/usr/bin/chromium`,
+because `~/.local/bin` comes after `/usr/bin` in Omarchy's `PATH`. Quit
+Chromium fully and reopen it after installing.
 
 ## Why plymouth-theme-sync patches the script directly, and how it stays synced
 

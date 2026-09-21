@@ -343,11 +343,82 @@ else
   say "skipped xwayland-primary-monitor"
 fi
 
-# 9. NVIDIA hardware video decode for Chromium ------------------------------- #
+# 9. Chromium video on NVIDIA machines --------------------------------------- #
 # Not personal-only: gated on actually having an NVIDIA GPU (via lspci)
 # instead of the -p flag, so it's offered on any machine that has one, not
-# just the author's own.
+# just the author's own. Which piece is offered depends on whether there is
+# also an AMD or Intel GPU: the NVDEC flags only work when Chromium renders
+# on the NVIDIA GPU itself, and break video on a hybrid machine.
+HAS_NVIDIA=0
+HAS_OTHER_GPU=0
 if lspci -d '10de:' 2>/dev/null | grep -qE 'VGA compatible controller|3D controller'; then
+  HAS_NVIDIA=1
+fi
+if lspci -nn 2>/dev/null | grep -E 'VGA compatible controller|3D controller|Display controller' | grep -qE '\[(1002|8086):'; then
+  HAS_OTHER_GPU=1
+fi
+
+CHROMIUM_SYSTEM_DESKTOP="/usr/share/applications/chromium.desktop"
+CHROMIUM_USER_DESKTOP="$HOME/.local/share/applications/chromium.desktop"
+CHROMIUM_DESKTOP_MARK="# added by omarchy-akbari"
+
+if [ "$HAS_NVIDIA" = 1 ] && [ "$HAS_OTHER_GPU" = 1 ]; then
+  say "Chromium video on an NVIDIA + AMD/Intel machine: Omarchy exports"
+  say "  LIBVA_DRIVER_NAME=nvidia session-wide, but Chromium draws on the"
+  say "  other GPU, so frames decoded on the NVIDIA card can't be imported"
+  say "  (black or frozen video, GPU process crashes, YouTube included)."
+  say "  Installs a chromium wrapper into $BIN_DIR that unsets those"
+  say "  variables for Chromium only, and a user chromium.desktop that"
+  say "  launches it (so the app menu and omarchy-launch-browser use it)."
+  say "  Chromium then decodes on the AMD/Intel GPU instead."
+  if [ ! -f "$CHROMIUM_SYSTEM_DESKTOP" ]; then
+    warn "$CHROMIUM_SYSTEM_DESKTOP not found (Chromium not installed?), skipping"
+  elif confirm "Install the Chromium hybrid GPU wrapper?"; then
+    link "$REPO/bin/chromium" "$BIN_DIR/chromium"
+    chmod +x "$REPO/bin/chromium"
+    tmp="$(mktemp)"
+    { sed "s|^Exec=/usr/bin/chromium|Exec=$BIN_DIR/chromium|" "$CHROMIUM_SYSTEM_DESKTOP"; printf '%s\n' "$CHROMIUM_DESKTOP_MARK"; } > "$tmp"
+    if ! grep -qF "Exec=$BIN_DIR/chromium" "$tmp"; then
+      warn "$CHROMIUM_SYSTEM_DESKTOP has no Exec=/usr/bin/chromium line to rewrite, skipping the launcher"
+      rm -f "$tmp"
+    elif [ -f "$CHROMIUM_USER_DESKTOP" ] && cmp -s "$tmp" "$CHROMIUM_USER_DESKTOP"; then
+      rm -f "$tmp"
+    else
+      if [ -e "$CHROMIUM_USER_DESKTOP" ] && ! grep -qF "$CHROMIUM_DESKTOP_MARK" "$CHROMIUM_USER_DESKTOP"; then
+        mv "$CHROMIUM_USER_DESKTOP" "$CHROMIUM_USER_DESKTOP.bak.$(date +%s)"
+        warn "backed up existing $CHROMIUM_USER_DESKTOP"
+      fi
+      mkdir -p "$(dirname "$CHROMIUM_USER_DESKTOP")"
+      mv "$tmp" "$CHROMIUM_USER_DESKTOP"
+      chmod 644 "$CHROMIUM_USER_DESKTOP"
+      say "wrote $CHROMIUM_USER_DESKTOP"
+    fi
+    update-desktop-database "$(dirname "$CHROMIUM_USER_DESKTOP")" >/dev/null 2>&1 || true
+    warn "quit Chromium fully and reopen it from the app menu to pick this up"
+  else
+    say "skipped the Chromium hybrid GPU wrapper"
+  fi
+  # An earlier install (or the NVIDIA-only step) may have linked the NVDEC
+  # flags. They do nothing useful on a hybrid machine, so offer to undo that,
+  # putting back whatever link() backed up (Omarchy's own default flags).
+  if [ -L "$CONFIG_DIR/chromium-flags.conf" ] && [ "$(readlink -f "$CONFIG_DIR/chromium-flags.conf")" = "$(readlink -f "$REPO/config/chromium/chromium-flags.conf")" ]; then
+    say "  $CONFIG_DIR/chromium-flags.conf still links the NVIDIA decode flags"
+    say "  from an earlier install. They are pointless on this machine."
+    if confirm "Remove them and go back to Omarchy's default Chromium flags?"; then
+      rm -f "$CONFIG_DIR/chromium-flags.conf"
+      say "removed $CONFIG_DIR/chromium-flags.conf"
+      latest="$(ls -t "$CONFIG_DIR"/chromium-flags.conf.bak.* 2>/dev/null | head -1 || true)"
+      if [ -n "$latest" ]; then
+        mv "$latest" "$CONFIG_DIR/chromium-flags.conf"
+        say "restored $CONFIG_DIR/chromium-flags.conf from $latest"
+      else
+        warn "no backup to restore; run omarchy-refresh-chromium to get Omarchy's default flags back"
+      fi
+    else
+      say "left the NVIDIA decode flags in place"
+    fi
+  fi
+elif [ "$HAS_NVIDIA" = 1 ]; then
   say "NVIDIA video decode for Chromium: Chromium's VA-API wrapper skips"
   say "  any driver literally named 'nvidia' by default, so hardware video"
   say "  decode (YouTube included) silently falls back to software instead"

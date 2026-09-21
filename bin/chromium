@@ -1,0 +1,10 @@
+#!/bin/bash
+# Chromium launcher for hybrid GPU machines (NVIDIA plus an AMD or Intel iGPU).
+#
+# Omarchy exports LIBVA_DRIVER_NAME=nvidia (and NVD_BACKEND) session-wide on
+# NVIDIA machines. Chromium composites on the iGPU, so frames decoded by NVDEC
+# can't be imported into its GL context: EGLImage failures, black or frozen
+# video, GPU process crashes. Keeping those variables out of Chromium lets it
+# pick the iGPU's VA-API driver instead. Everything else in the session (other
+# apps, Omarchy itself) still sees them.
+exec env -u LIBVA_DRIVER_NAME -u NVD_BACKEND /usr/bin/chromium "$@"

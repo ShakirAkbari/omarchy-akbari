@@ -28,8 +28,8 @@ keys, hypr-goldenspiral, the numlock-on-boot setup older versions installed
 (cleanup only), the Limine Windows entry,
 xwayland-primary-monitor, Plymouth boot screen theming (and its theme-set
 hook), the System menu's Reboot to Windows entry, the Claude app
-launcher, and (if present) the personal-only monitor layout, Chromium
-flags, and package list.
+launcher, the Chromium hybrid GPU wrapper, and (if present) the
+personal-only monitor layout, Chromium flags, and package list.
 
   -h, --help   Show this help.
 EOF
@@ -317,6 +317,30 @@ if [ -L "$CONFIG_DIR/chromium-flags.conf" ]; then
   fi
 else
   say "Chromium hardware video decode flags not installed, nothing to do"
+fi
+
+CHROMIUM_USER_DESKTOP="$HOME/.local/share/applications/chromium.desktop"
+CHROMIUM_DESKTOP_MARK="# added by omarchy-akbari"
+if [ -L "$BIN_DIR/chromium" ] || { [ -f "$CHROMIUM_USER_DESKTOP" ] && grep -qF "$CHROMIUM_DESKTOP_MARK" "$CHROMIUM_USER_DESKTOP"; }; then
+  if confirm "Remove the Chromium hybrid GPU wrapper ($BIN_DIR/chromium and its chromium.desktop)?"; then
+    if [ -L "$BIN_DIR/chromium" ]; then
+      unlink_ours "$REPO/bin/chromium" "$BIN_DIR/chromium"
+    fi
+    if [ -f "$CHROMIUM_USER_DESKTOP" ] && grep -qF "$CHROMIUM_DESKTOP_MARK" "$CHROMIUM_USER_DESKTOP"; then
+      rm -f "$CHROMIUM_USER_DESKTOP"
+      say "removed $CHROMIUM_USER_DESKTOP"
+      latest="$(ls -t "$CHROMIUM_USER_DESKTOP".bak.* 2>/dev/null | head -1 || true)"
+      if [ -n "$latest" ] && confirm "Restore the previous $CHROMIUM_USER_DESKTOP from backup ($latest)?"; then
+        mv "$latest" "$CHROMIUM_USER_DESKTOP"
+        say "restored $CHROMIUM_USER_DESKTOP from $latest"
+      fi
+      update-desktop-database "$(dirname "$CHROMIUM_USER_DESKTOP")" >/dev/null 2>&1 || true
+    fi
+  else
+    say "left the Chromium hybrid GPU wrapper in place"
+  fi
+else
+  say "Chromium hybrid GPU wrapper not installed, nothing to do"
 fi
 
 PLYMOUTH_HOOK="$CONFIG_DIR/omarchy/hooks/theme-set.d/plymouth-theme-sync"
