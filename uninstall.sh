@@ -29,7 +29,8 @@ keys, hypr-goldenspiral, the numlock-on-boot setup older versions installed
 xwayland-primary-monitor, Plymouth boot screen theming (and its theme-set
 hook), the System menu's Reboot to Windows entry, the Claude app
 launcher, the Chromium hybrid GPU wrapper, and (if present) the
-personal-only monitor layout, Chromium flags, and package list.
+personal-only monitor layout, Chromium flags, CoolerControl fan curves,
+web apps, and package list.
 
   -h, --help   Show this help.
 EOF
@@ -433,6 +434,18 @@ else
   say "no saved Windows dual-boot choice, nothing to do"
 fi
 
+if [ -f "$REPO/webapps-personal.txt" ] && command -v omarchy-webapp-remove >/dev/null 2>&1; then
+  while IFS='|' read -r app_name app_url _; do
+    # Only ours if the launcher still opens the URL this repo installed it for.
+    grep -qF "$app_url" "$HOME/.local/share/applications/$app_name.desktop" 2>/dev/null || continue
+    if confirm "Remove the $app_name web app from the app launcher?"; then
+      omarchy-webapp-remove "$app_name" </dev/null || warn "could not remove the $app_name web app"
+    else
+      say "left the $app_name web app in place"
+    fi
+  done < <(grep -vE '^\s*(#|$)' "$REPO/webapps-personal.txt")
+fi
+
 if [ -f "$REPO/packages-personal.txt" ] && command -v omarchy >/dev/null 2>&1; then
   warn "removing the personal package list can remove GPU drivers and other packages other software depends on"
   if confirm "Remove the personal package list (gaming, virtualization, NVIDIA drivers, work apps) via omarchy pkg drop?"; then
@@ -441,6 +454,23 @@ if [ -f "$REPO/packages-personal.txt" ] && command -v omarchy >/dev/null 2>&1; t
     say "personal packages removed"
   else
     say "left the personal package list installed"
+  fi
+fi
+
+if grep -qF omarchy.tailscale "$CONFIG_DIR/omarchy/shell.json" 2>/dev/null && command -v omarchy-remove-service-tailscale >/dev/null 2>&1; then
+  warn "this also uninstalls the tailscale package and logs this machine out of your tailnet"
+  if confirm "Remove Tailscale (bar icon, admin web app, daemon, package)?"; then
+    omarchy-remove-service-tailscale || warn "could not fully remove Tailscale"
+  else
+    say "left Tailscale in place"
+  fi
+fi
+
+if [ -x "$REPO/bin/coolercontrol-apply-fans" ] && systemctl is-active --quiet coolercontrold.service; then
+  if confirm "Put the fans back to automatic and delete the CoolerControl fan curves this repo added?"; then
+    "$REPO/bin/coolercontrol-apply-fans" --remove || warn "could not remove the fan curves"
+  else
+    say "left the CoolerControl fan curves in place"
   fi
 fi
 

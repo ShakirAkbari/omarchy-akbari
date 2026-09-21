@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+"""Apply (or remove) the fan setup in config/coolercontrol/fans.json via
+CoolerControl's REST API, so it does not depend on hand-clicking the GUI.
+
+  coolercontrol-apply-fans            create the function/profiles if missing,
+                                      then assign them to the fan channels
+  coolercontrol-apply-fans --remove   put those channels back to Unmanaged and
+                                      delete the function/profiles it made
+
+Idempotent: a function or profile that already exists by name is reused, not
+duplicated or overwritten (edit it in the CoolerControl app, or --remove and
+re-apply, to change it). Talks to the local daemon only. Password: $CC_PASSWORD,
+else the daemon's default, else it asks.
+"""
+import base64
+import getpass
+import http.cookiejar
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+import uuid
+
+BASE = "http://127.0.0.1:11987"
+UNMANAGED = "0"
+CONFIG = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "config", "coolercontrol", "fans.json")
+
+jar = http.cookiejar.CookieJar()
+opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+
+
+def die(msg):
+    sys.exit(f"coolercontrol-apply-fans: {msg}")
+
+
+def call(method, path, body=None):
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(BASE + path, data=data, method=method)
+    if body is not None:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with opener.open(req, timeout=10) as r:
+            raw = r.read()
+            return json.loads(raw) if raw else None
+    except urllib.error.HTTPError as e:
+        die(f"{method} {path} -> {e.code}: {e.read().decode()[:300]}")
+    except urllib.error.URLError as e:
+        die(f"cannot reach coolercontrold on {BASE} ({e.reason}); is the service running?")
+
+
+def login():
+    candidates = [os.environ.get("CC_PASSWORD", "coolAdmin"), None]
+    for pw in candidates:
+        if pw is None:
+            if not sys.stdin.isatty():
+                die("login failed and there is no terminal to ask for the password (set $CC_PASSWORD)")
+            pw = getpass.getpass("CoolerControl admin password: ")
+        req = urllib.request.Request(BASE + "/login", method="POST")
+        token = base64.b64encode(f"CCAdmin:{pw}".encode()).decode()
+        req.add_header("Authorization", "Basic " + token)
+        try:
+            opener.open(req, timeout=10).read()
+            return
+        except urllib.error.HTTPError as e:
+            if e.code != 401:
+                die(f"login -> {e.code}")
+        except urllib.error.URLError as e:
+            die(f"cannot reach coolercontrold on {BASE} ({e.reason}); is the service running?")
+    die("login failed")
+
+
+def main():
+    remove = "--remove" in sys.argv[1:]
+    with open(CONFIG) as f:
+        cfg = json.load(f)
+
+    login()
+    devices = call("GET", "/devices")["devices"]
+    board = next((d for d in devices if d["name"] == cfg["device"]), None)
+    if board is None:
+        die(f"no '{cfg['device']}' device in CoolerControl (wrong motherboard, or the hwmon driver is not loaded)")
+    labels = {i["label"]: ch for ch, i in board["info"]["channels"].items()}
+    missing = [n for n in cfg["channels"] if n not in labels]
+    if missing:
+        die(f"channels not found on {cfg['device']}: {', '.join(missing)}")
+
+    funcs = {f["name"]: f for f in call("GET", "/functions")["functions"]}
+    profs = {p["name"]: p for p in call("GET", "/profiles")["profiles"]}
+
+    if remove:
+        for name in cfg["channels"]:
+            call("PUT", f"/devices/{board['uid']}/settings/{labels[name]}/profile", {"profile_uid": UNMANAGED})
+            print(f"{name} -> Unmanaged")
+        for p in cfg["profiles"]:
+            if p["name"] in profs:
+                call("DELETE", f"/profiles/{profs[p['name']]['uid']}")
+                print(f"deleted profile {p['name']}")
+        fname = cfg["function"]["name"]
+        if fname in funcs:
+            call("DELETE", f"/functions/{funcs[fname]['uid']}")
+            print(f"deleted function {fname}")
+        return
+
+    fc = cfg["function"]
+    if fc["name"] not in funcs:
+        funcs[fc["name"]] = {
+            "uid": str(uuid.uuid4()), "name": fc["name"], "f_type": "Standard",
+            "duty_minimum": fc["duty_minimum"], "duty_maximum": fc["duty_maximum"],
+            "step_size_min_decreasing": 0, "step_size_max_decreasing": 0,
+            "response_delay": fc["response_delay"], "deviance": fc["deviance"],
+            "only_downward": fc["only_downward"], "sample_window": None,
+            "threshold_hopping": True, "bypass_min_at_extremes": False,
+        }
+        call("POST", "/functions", funcs[fc["name"]])
+        print(f"created function {fc['name']}")
+    func_uid = funcs[fc["name"]]["uid"]
+
+    for pc in cfg["profiles"]:
+        if pc["name"] in profs:
+            continue
+        p = {"uid": str(uuid.uuid4()), "p_type": pc["type"], "name": pc["name"],
+             "speed_fixed": None, "speed_profile": None, "temp_source": None,
+             "temp_min": None, "temp_max": None, "function_uid": UNMANAGED,
+             "member_profile_uids": [], "mix_function_type": None, "offset_profile": None}
+        if pc["type"] == "Graph":
+            src = next((d for d in devices if d["type"] == pc["temp_device_type"]), None)
+            temp = src and src["info"]["temps"].get(pc["temp_name"])
+            if not temp or not temp["label"].endswith(pc["temp_label_suffix"]):
+                die(f"temperature source {pc['temp_device_type']}/{pc['temp_name']} ({pc['temp_label_suffix']}) not found")
+            p.update(speed_profile=[[float(t), d] for t, d in pc["curve"]],
+                     temp_source={"temp_name": pc["temp_name"], "device_uid": src["uid"]},
+                     temp_min=20.0, temp_max=100.0, function_uid=func_uid)
+        else:
+            p["speed_fixed"] = pc["duty"]
+        call("POST", "/profiles", p)
+        profs[pc["name"]] = p
+        print(f"created profile {pc['name']}")
+
+    for name, prof in cfg["channels"].items():
+        call("PUT", f"/devices/{board['uid']}/settings/{labels[name]}/profile", {"profile_uid": profs[prof]["uid"]})
+        print(f"{name} ({labels[name]}) -> {prof}")
+
+
+main()

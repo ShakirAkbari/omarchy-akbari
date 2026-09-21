@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+- `install.sh -p` / `uninstall.sh`: Tailscale now goes through Omarchy's own
+  `omarchy-install-service-tailscale` instead of only enabling `tailscaled`
+  in the services loop. The bare daemon left the machine logged out with no
+  icon or panel; Omarchy's installer also logs in, enables the `omarchy.tailscale`
+  bar plugin, receives Taildrop files and adds the admin web app. Offered once
+  the package is installed and the plugin is not yet in `shell.json`.
+  `uninstall.sh` runs `omarchy-remove-service-tailscale`, which also drops the
+  package.
+- `install.sh -p` / `uninstall.sh`: CoolerControl fan curves and Microsoft
+  web apps.
+  - New `bin/coolercontrol-apply-fans` applies `config/coolercontrol/fans.json`
+    through the daemon's REST API: one "CPU Temp" curve (CPU Tctl, 0% at
+    50C up to 60% at 85C, 2C hysteresis, 1s response) on the CPU fan and
+    System Fans #1, #2, #4 and #5, and the pump fixed at 50%. The values were
+    carried over from a Windows FanControl install (the original is kept as
+    `config/coolercontrol/fancontrol-windows.json` for reference, not
+    applied). Fans idle at 0 RPM below 50C, as they did on Windows. Reuses
+    profiles that already exist by name, so re-running is safe; `--remove`
+    (what `uninstall.sh` runs) puts the channels back to Unmanaged and
+    deletes what it made. Needs `coolercontrold` running and a board whose
+    hwmon chip is `nct6687`; uses the daemon's default password, else
+    `$CC_PASSWORD`, else asks.
+  - New `webapps-personal.txt`: Word, Excel and Teams (web) launchers for the
+    app launcher, made with `omarchy-webapp-install`, asked one by one. The
+    icons are vendored in `config/icons/webapps/` because the site-fetched
+    ones for Word and Excel were a generic 16px SVG. `uninstall.sh` removes
+    them with `omarchy-webapp-remove`, only if the launcher still points at
+    the URL listed here.
 - `install.sh` / `uninstall.sh`: Chromium hybrid GPU fix. On a machine with
   an NVIDIA GPU plus an AMD or Intel one, Omarchy's session-wide
   `LIBVA_DRIVER_NAME=nvidia` made Chromium decode video on the NVIDIA card

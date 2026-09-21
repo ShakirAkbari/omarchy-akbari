@@ -1,0 +1,35 @@
+{
+  "note": "Fan setup for bin/coolercontrol-apply-fans, carried over from Windows FanControl (see fancontrol-windows.json). Names must match CoolerControl's own labels.",
+  "device": "nct6687",
+  "function": {
+    "name": "Hysteresis 2C 1s",
+    "duty_minimum": 1,
+    "duty_maximum": 100,
+    "response_delay": 1,
+    "deviance": 2,
+    "only_downward": false
+  },
+  "profiles": [
+    {
+      "name": "CPU Temp",
+      "type": "Graph",
+      "temp_device_type": "CPU",
+      "temp_name": "temp1",
+      "temp_label_suffix": "Tctl",
+      "curve": [[50, 0], [85, 60]]
+    },
+    {
+      "name": "Water Pump",
+      "type": "Fixed",
+      "duty": 50
+    }
+  ],
+  "channels": {
+    "CPU Fan": "CPU Temp",
+    "System Fan #1": "CPU Temp",
+    "System Fan #2": "CPU Temp",
+    "System Fan #4": "CPU Temp",
+    "System Fan #5": "CPU Temp",
+    "Pump Fan": "Water Pump"
+  }
+}

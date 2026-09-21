@@ -680,10 +680,22 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped personal package list"
   fi
 
+  say "Web apps: launcher entries (SUPER+SPACE) that open a site in its own"
+  say "  app window, like Omarchy's own web apps; asked one by one."
+  if [ -f "$REPO/webapps-personal.txt" ] && command -v omarchy-webapp-install >/dev/null 2>&1; then
+    while IFS='|' read -r app_name app_url app_icon; do
+      [ -f "$HOME/.local/share/applications/$app_name.desktop" ] && continue
+      if confirm "Add the $app_name web app ($app_url)?"; then
+        omarchy-webapp-install "$app_name" "$app_url" "$REPO/$app_icon" </dev/null || warn "could not add the $app_name web app"
+      fi
+    done < <(grep -vE '^\s*(#|$)' "$REPO/webapps-personal.txt")
+  else
+    say "skipped web apps"
+  fi
+
   say "Services: installed daemons start out disabled; asked one by one."
   for entry in \
     "libvirt:libvirtd.service:virtual machines for virt-manager" \
-    "tailscale:tailscaled.service:Tailscale VPN daemon" \
     "coolercontrol:coolercontrold.service:CoolerControl fan and cooling daemon" \
     "ollama-cuda:ollama.service:local LLM server"; do
     IFS=: read -r svc_pkg svc_unit svc_desc <<< "$entry"
@@ -698,6 +710,40 @@ if [ "$PERSONAL" -eq 1 ]; then
     if confirm "Add $USER to the libvirt group (manage VMs without sudo)?"; then
       sudo usermod -aG libvirt "$USER" || warn "could not add $USER to the libvirt group"
       say "added to libvirt; log out and back in for it to take effect"
+    fi
+  fi
+
+  # Not in the services loop above: enabling tailscaled alone leaves it logged
+  # out with no icon or panel. Omarchy's own installer also does the login, the
+  # bar plugin, Taildrop and the admin web app, so this just runs that.
+  if pacman -Qq tailscale >/dev/null 2>&1 && command -v omarchy-install-service-tailscale >/dev/null 2>&1 \
+     && ! grep -qF omarchy.tailscale "$CONFIG_DIR/omarchy/shell.json" 2>/dev/null; then
+    say "Tailscale: runs Omarchy's own setup. Enables tailscaled, logs in"
+    say "  (prints a link to open), puts the Tailscale icon and panel in the bar,"
+    say "  receives Taildrop files in ~/Downloads, and adds a Tailscale admin"
+    say "  web app. Needs sudo."
+    if confirm "Set up Tailscale (login, bar icon, admin web app)?"; then
+      omarchy-install-service-tailscale || warn "Tailscale setup did not finish"
+    else
+      say "skipped the Tailscale setup"
+    fi
+  fi
+
+  # Carried over from Windows FanControl; the settings live in
+  # config/coolercontrol/fans.json (raw original in fancontrol-windows.json).
+  # Goes through CoolerControl's REST API, since its config.toml is root-owned
+  # and its profile format is the daemon's to write, not ours.
+  if pacman -Qq coolercontrol >/dev/null 2>&1; then
+    say "CoolerControl fan curves: one CPU-temperature curve (0% at 50C up to"
+    say "  60% at 85C, 2C hysteresis) on the CPU and system fans, the pump fixed"
+    say "  at 50%, matching the old Windows FanControl setup. Needs coolercontrold"
+    say "  running; fans idle at 0 RPM below 50C, so check temps under load."
+    if ! systemctl is-active --quiet coolercontrold.service; then
+      say "coolercontrold is not running, skipping the fan curves (enable it above, then re-run)"
+    elif confirm "Apply the fan curves to CoolerControl?"; then
+      "$REPO/bin/coolercontrol-apply-fans" || warn "could not apply the fan curves"
+    else
+      say "skipped the CoolerControl fan curves"
     fi
   fi
 fi

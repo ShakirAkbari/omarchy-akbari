@@ -73,6 +73,11 @@ boot menu that actually shows up and can chainload Windows.
 |                                       added to shell.json's        |
 |                                       bar layout (right section)  |
 |    packages-personal.txt      ---->  omarchy pkg add             |
+|    webapps-personal.txt       ---->  omarchy-webapp-install       |
+|                                       (Word, Excel, Teams in the  |
+|                                       app launcher)               |
+|    coolercontrol/fans.json    ---->  CoolerControl fan curves,    |
+|                                       applied via its REST API    |
 +-----------------------------------------------------------------+
 ```
 
@@ -148,9 +153,11 @@ synced](#why-plymouth-theme-sync-patches-the-script-directly-and-how-it-stays-sy
 below for details. Not personal-only: this benefits anyone running Omarchy.
 
 Add `-p` / `--personal` only on my own machines: it also installs a hardcoded
-monitor layout, the startup-workspace fix, both bar widgets, and my full
-extra package list (gaming, virtualization, NVIDIA drivers, work apps). Skip
-it everywhere else.
+monitor layout, the startup-workspace fix, both bar widgets, my full
+extra package list (gaming, virtualization, NVIDIA drivers, work apps), the
+Word/Excel/Teams web apps, and my CoolerControl fan curves (needs
+`coolercontrold` running; the fans idle at 0 RPM below 50C, so check temps
+under load). Skip it everywhere else.
 
 ```sh
 ./install.sh --personal

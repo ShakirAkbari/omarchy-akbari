@@ -1,0 +1,7 @@
+# Web apps for the app launcher, only added with -p (via omarchy-webapp-install).
+# One per line as Name|URL|icon, the icon being a path inside this repo.
+# Comments (#) and blank lines are ignored. The name becomes the launcher's
+# name, so it can't contain a slash.
+Word|https://word.cloud.microsoft/|config/icons/webapps/word.png
+Excel|https://excel.cloud.microsoft/|config/icons/webapps/excel.png
+Teams|https://teams.cloud.microsoft/|config/icons/webapps/teams.png
