@@ -1,0 +1,9 @@
+#!/bin/sh
+# Session for RDP logins through xrdp (linked to ~/.xinitrc by omarchy-akbari's
+# install.sh). xrdp's /etc/xrdp/startwm.sh sources ~/.xinitrc if it exists.
+#
+# This is a separate X11 desktop, not the Hyprland session on the physical
+# monitors: Hyprland is a Wayland compositor and cannot run inside xrdp's Xorg.
+# icewm is a single package with its own taskbar and app menu, so it needs no
+# setup; swap it for any other X11 window manager if you prefer.
+exec icewm-session

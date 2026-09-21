@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Starts wayvnc listening on this machine's Tailscale IPv4 address only, never
+# on the LAN or on every interface. Run by ~/.config/systemd/user/wayvnc.service.
+#
+# If Tailscale has no address yet (still coming up at login, or logged out),
+# this exits non-zero and the unit's Restart= tries again in a few seconds,
+# instead of falling back to wayvnc's default of listening everywhere.
+#
+# wayvnc captures a single output. Left alone it takes whichever one
+# enumerates first, which on a multi-monitor desk is often a small or rotated
+# secondary. This picks the output with the largest pixel area instead (same
+# rule as xwayland-primary-monitor). Switch at runtime with
+# `wayvncctl output-set <name>`; `wayvncctl output-list` shows the names.
+#
+# The TLS certificate and key paths must be absolute, and they differ per user,
+# so they can't live in the repo's config. This builds the config wayvnc reads
+# from the installed one plus those two paths (see config/wayvnc/config).
+set -euo pipefail
+
+ip="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
+if [ -z "$ip" ]; then
+  echo "wayvnc-tailscale: Tailscale has no IPv4 address yet, not listening anywhere else" >&2
+  exit 1
+fi
+
+output="$(hyprctl monitors -j 2>/dev/null | jq -r 'max_by(.width * .height) | .name // empty' 2>/dev/null || true)"
+
+conf_dir="${XDG_CONFIG_HOME:-$HOME/.config}/wayvnc"
+conf="${XDG_RUNTIME_DIR:?}/wayvnc-tailscale.conf"
+{
+  cat "$conf_dir/config"
+  printf 'certificate_file=%s\nprivate_key_file=%s\n' "$conf_dir/cert.pem" "$conf_dir/key.pem"
+} > "$conf"
+
+args=(--config "$conf")
+[ -n "$output" ] && args+=(--output "$output")
+
+exec wayvnc "${args[@]}" "$ip"

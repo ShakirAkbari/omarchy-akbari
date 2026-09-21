@@ -124,7 +124,7 @@ say "    otherwise toggles play/pause."
 say "  - spotify-stop-key: a single press pauses playback; a second press"
 say "    within 400ms quits Spotify instead (asks it to quit cleanly first,"
 say "    falls back to SIGTERM)."
-if confirm "Install these into $BIN_DIR?"; then
+if confirm "Install spotify-play-key and spotify-stop-key into $BIN_DIR?"; then
   mkdir -p "$BIN_DIR"
   for script in spotify-play-key spotify-stop-key; do
     link "$REPO/bin/$script" "$BIN_DIR/$script"
@@ -404,7 +404,7 @@ if [ "$HAS_NVIDIA" = 1 ] && [ "$HAS_OTHER_GPU" = 1 ]; then
   if [ -L "$CONFIG_DIR/chromium-flags.conf" ] && [ "$(readlink -f "$CONFIG_DIR/chromium-flags.conf")" = "$(readlink -f "$REPO/config/chromium/chromium-flags.conf")" ]; then
     say "  $CONFIG_DIR/chromium-flags.conf still links the NVIDIA decode flags"
     say "  from an earlier install. They are pointless on this machine."
-    if confirm "Remove them and go back to Omarchy's default Chromium flags?"; then
+    if confirm "Remove the NVIDIA decode flags from chromium-flags.conf and go back to Omarchy's default Chromium flags?"; then
       rm -f "$CONFIG_DIR/chromium-flags.conf"
       say "removed $CONFIG_DIR/chromium-flags.conf"
       latest="$(ls -t "$CONFIG_DIR"/chromium-flags.conf.bak.* 2>/dev/null | head -1 || true)"
@@ -475,7 +475,7 @@ if confirm "Recolor the boot screen now?"; then
   say "  out of sync (needs sudo again on each switch; if it can't get sudo"
   say "  without a prompt, it opens a terminal to ask there instead of"
   say "  hanging silently)."
-  if confirm "Install that hook?"; then
+  if confirm "Install the theme-set hook that re-syncs the Plymouth boot screen on every theme switch?"; then
     omarchy hook install theme-set "$REPO/bin/plymouth-theme-sync"
     say "installed the theme-set hook: ~/.config/omarchy/hooks/theme-set.d/plymouth-theme-sync"
   else
@@ -745,6 +745,98 @@ if [ "$PERSONAL" -eq 1 ]; then
     else
       say "skipped the CoolerControl fan curves"
     fi
+  fi
+fi
+
+# 14. Remote desktop from Windows, over Tailscale only ------------------------- #
+# Not personal-only, but after the personal block so a -p run has already set
+# up Tailscale (which this needs) by now. Two independent options, asked
+# separately, because no single server does both jobs on Hyprland: RDP servers
+# either start their own X11 session (xrdp) or need GNOME/KDE compositor hooks
+# Hyprland doesn't have (gnome-remote-desktop, krdp), while mirroring the live
+# session needs a wlroots-style VNC server (wayvnc), which is VNC, not RDP.
+#
+# ufw denies incoming by default (Omarchy's firewall.sh), so each option opens
+# its port on tailscale0 only. xrdp binds every interface (binding it to the
+# Tailscale address would make it fail at boot whenever Tailscale is late), so
+# for it the firewall is the only gate; wayvnc binds the Tailscale address
+# itself (bin/wayvnc-tailscale), so it is gated twice.
+allow_tailscale_port() {
+  local port="$1" label="$2"
+  if ! command -v ufw >/dev/null 2>&1; then
+    warn "ufw not found; allow tcp/$port in on tailscale0 in your firewall yourself"
+    return 0
+  fi
+  sudo ufw allow in on tailscale0 to any port "$port" proto tcp comment "$label" \
+    || warn "could not add the ufw rule; allow tcp/$port in on tailscale0 yourself"
+}
+
+setup_xrdp() {
+  local missing=() pkg
+  for pkg in xrdp xorgxrdp; do
+    pacman -Qq "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    omarchy pkg aur add "${missing[@]}" || { warn "could not install ${missing[*]} from the AUR"; return 1; }
+  fi
+  omarchy pkg add icewm || { warn "could not install icewm"; return 1; }
+  link "$REPO/config/xrdp/xinitrc" "$HOME/.xinitrc"
+  sudo systemctl enable --now xrdp-sesman.service xrdp.service || { warn "could not enable xrdp"; return 1; }
+  allow_tailscale_port 3389 "omarchy-akbari xrdp"
+  say "RDP is up. From Windows: mstsc.exe, computer $(tailscale ip -4 2>/dev/null | head -n1), then sign in as $USER"
+  say "  with your Linux password. It opens a new icewm desktop, not this screen."
+}
+
+setup_wayvnc() {
+  local ip
+  ip="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
+  [ -n "$ip" ] || { warn "Tailscale has no IPv4 address (logged out?); run 'tailscale up' and re-run"; return 1; }
+  omarchy pkg add wayvnc || { warn "could not install wayvnc"; return 1; }
+  mkdir -p "$CONFIG_DIR/wayvnc" "$BIN_DIR" "$CONFIG_DIR/systemd/user"
+  if [ ! -f "$CONFIG_DIR/wayvnc/cert.pem" ] || [ ! -f "$CONFIG_DIR/wayvnc/key.pem" ]; then
+    # umask so the private key is never readable by anyone else, even briefly.
+    (umask 077 && openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:secp384r1 -sha384 -days 3650 -nodes \
+      -keyout "$CONFIG_DIR/wayvnc/key.pem" -out "$CONFIG_DIR/wayvnc/cert.pem" \
+      -subj "/CN=$(hostname)" -addext "subjectAltName=DNS:$(hostname),IP:$ip") \
+      || { warn "could not generate the TLS certificate"; return 1; }
+    say "generated a self-signed TLS certificate in $CONFIG_DIR/wayvnc"
+  fi
+  link "$REPO/config/wayvnc/config" "$CONFIG_DIR/wayvnc/config"
+  link "$REPO/bin/wayvnc-tailscale" "$BIN_DIR/wayvnc-tailscale"
+  chmod +x "$REPO/bin/wayvnc-tailscale"
+  link "$REPO/config/systemd/user/wayvnc.service" "$CONFIG_DIR/systemd/user/wayvnc.service"
+  systemctl --user daemon-reload
+  systemctl --user enable --now wayvnc.service || { warn "could not start wayvnc.service"; return 1; }
+  allow_tailscale_port 5900 "omarchy-akbari wayvnc"
+  say "VNC is up. From Windows: a VNC viewer that supports VeNCrypt (TigerVNC viewer), server $ip:5900,"
+  say "  sign in as $USER with your Linux password, and accept the certificate on first connect."
+}
+
+if ! command -v tailscale >/dev/null 2>&1; then
+  say "Remote desktop from Windows needs Tailscale, which isn't installed, skipping."
+  say "  Set it up first (Omarchy: omarchy-install-service-tailscale, or install.sh -p) and re-run."
+else
+  say "Remote desktop from Windows: two separate options, each listens on the"
+  say "  Tailscale interface only (nothing is opened to your LAN or Wi-Fi) and"
+  say "  signs in with your Linux username and password. Both need sudo."
+  say "  - xrdp (real RDP, so Windows' built-in Remote Desktop Connection works):"
+  say "    installs xrdp and xorgxrdp (AUR builds) and icewm, and starts a NEW"
+  say "    icewm desktop for each login. Hyprland can't be shared over RDP, so"
+  say "    this is not the screen you're looking at."
+  say "  - wayvnc (VNC, not RDP): mirrors and controls your live Hyprland session,"
+  say "    the screen you're looking at (the largest monitor). Windows needs a"
+  say "    VNC viewer such as TigerVNC; it has no built-in one. Runs as a user"
+  say "    service, with a self-signed certificate generated in"
+  say "    $CONFIG_DIR/wayvnc."
+  if confirm "Set up xrdp (RDP, separate desktop)?"; then
+    setup_xrdp || warn "xrdp setup did not finish"
+  else
+    say "skipped xrdp"
+  fi
+  if confirm "Set up wayvnc (VNC, mirrors this session)?"; then
+    setup_wayvnc || warn "wayvnc setup did not finish"
+  else
+    say "skipped wayvnc"
   fi
 fi
 

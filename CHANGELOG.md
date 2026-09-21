@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- `install.sh` / `uninstall.sh`: remote desktop from Windows, over Tailscale
+  only. Two independent, separately asked options, because Hyprland has no
+  single server that does both jobs (`gnome-remote-desktop` and `krdp` need
+  GNOME/KDE compositor hooks; `xdg-desktop-portal-hyprland` has no input
+  injection):
+  - xrdp (real RDP, works with `mstsc.exe`): builds `xrdp` and `xorgxrdp` from
+    the AUR, installs `icewm`, links `config/xrdp/xinitrc` to `~/.xinitrc`
+    (xrdp's `startwm.sh` sources it) and enables `xrdp` and `xrdp-sesman`.
+    Each login gets its own icewm desktop, not the Hyprland session.
+  - wayvnc (VNC, not RDP): mirrors the live Hyprland session. New
+    `bin/wayvnc-tailscale` listens on the Tailscale IPv4 address only, exits
+    (so the unit retries) if Tailscale has none yet instead of falling back
+    to every interface, and captures the output with the largest pixel area.
+    `config/systemd/user/wayvnc.service` runs it with the graphical session;
+    `config/wayvnc/config` turns on TLS plus PAM sign-in (Linux username and
+    password); install.sh generates the self-signed certificate locally, so
+    no key material is in the repo. wayvnc needs absolute certificate paths
+    (no `~`, and relative ones resolve against the symlink's target in the
+    repo), so `bin/wayvnc-tailscale` appends them to a runtime copy of the
+    config instead of the repo hardcoding a home directory.
+  - Each option adds a ufw rule for its port (3389, 5900) on `tailscale0`
+    only, since Omarchy's firewall denies incoming by default. The step is
+    skipped when Tailscale is not installed, and runs after the `-p` block so
+    a `-p` run has set Tailscale up first. `uninstall.sh` stops the services,
+    removes the rules, links, certificate and the packages (`icewm`
+    included).
 - `install.sh -p` / `uninstall.sh`: Tailscale now goes through Omarchy's own
   `omarchy-install-service-tailscale` instead of only enabling `tailscaled`
   in the services loop. The bare daemon left the machine logged out with no

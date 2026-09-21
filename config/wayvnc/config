@@ -1,0 +1,17 @@
+# wayvnc config (linked into ~/.config/wayvnc/ by omarchy-akbari's install.sh).
+# The listen address is not set here: bin/wayvnc-tailscale passes this
+# machine's Tailscale IP on the command line so nothing else can reach it.
+#
+# Sign in with your Linux username and password (PAM, /etc/pam.d/wayvnc, which
+# locks out after 3 failures). The certificate is self-signed and generated on
+# this machine by install.sh, so a VNC client asks once whether to trust it.
+#
+# certificate_file and private_key_file are deliberately not set here.
+# wayvnc has no ~ or $HOME expansion, and use_relative_paths resolves against
+# this file's real location (the repo, since ~/.config/wayvnc/config is a
+# symlink), not ~/.config/wayvnc where cert.pem and key.pem live. Pointing at
+# the wrong place makes wayvnc fail to load TLS and then segfault while bailing
+# out. bin/wayvnc-tailscale appends the two absolute paths for this user and
+# starts wayvnc with that combined file via --config.
+enable_auth=true
+enable_pam=true

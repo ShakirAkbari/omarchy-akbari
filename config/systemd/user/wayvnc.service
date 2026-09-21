@@ -1,0 +1,17 @@
+[Unit]
+Description=wayvnc: VNC server for the live Hyprland session (Tailscale only)
+Documentation=man:wayvnc(1)
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionEnvironment=WAYLAND_DISPLAY
+# Tailscale may not be up yet at login; wayvnc-tailscale fails until it is and
+# this keeps retrying rather than giving up.
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=%h/.local/bin/wayvnc-tailscale
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target
