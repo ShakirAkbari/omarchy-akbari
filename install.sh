@@ -840,5 +840,69 @@ else
   fi
 fi
 
+# Obsidian vault sync to Google Drive ---------------------------------------- #
+OBSIDIAN_DIR="$HOME/Documents/Obsidian"
+OBSIDIAN_SEEDED_FILE="$HOME/.local/state/omarchy-akbari/obsidian-sync-seeded"
+
+setup_obsidian_sync() {
+  local remotes
+  omarchy pkg add rclone || { warn "could not install rclone"; return 1; }
+  mkdir -p "$BIN_DIR" "$CONFIG_DIR/rclone" "$CONFIG_DIR/systemd/user"
+  link "$REPO/bin/obsidian-sync" "$BIN_DIR/obsidian-sync"
+  chmod +x "$REPO/bin/obsidian-sync"
+  link "$REPO/config/rclone/obsidian-filter.txt" "$CONFIG_DIR/rclone/obsidian-filter.txt"
+  link "$REPO/config/systemd/user/obsidian-sync.service" "$CONFIG_DIR/systemd/user/obsidian-sync.service"
+  link "$REPO/config/systemd/user/obsidian-sync.timer" "$CONFIG_DIR/systemd/user/obsidian-sync.timer"
+  systemctl --user daemon-reload
+
+  # A here-string, not `rclone ... | grep -q`: under pipefail, grep exiting
+  # early can make the pipeline fail even though it matched.
+  remotes="$(rclone listremotes 2>/dev/null || true)"
+  if ! grep -qx 'gdrive:' <<<"$remotes"; then
+    warn "rclone has no remote named 'gdrive' yet, so the timer is not enabled."
+    say "  The Google login needs a browser and your own Google client ID, so this"
+    say "  script leaves it to you. Set it up, then re-run install.sh:"
+    say "  - First machine: follow 'Obsidian vaults synced to Google Drive' in README.md"
+    say "    (a few minutes in the Google Cloud console, then 'rclone config')."
+    say "  - Another machine: copy ~/.config/rclone/rclone.conf over from the first"
+    say "    one with scp. It holds your Google login token, so don't email it."
+    return 0
+  fi
+
+  if [ ! -f "$OBSIDIAN_SEEDED_FILE" ]; then
+    say "First sync: merges $OBSIDIAN_DIR with gdrive:Obsidian. Files that exist on"
+    say "  only one side are copied to the other, the newer copy wins when both"
+    say "  have one, and nothing is deleted. Thousands of small notes take a few"
+    say "  minutes the first time; after that only changes move."
+    if ! confirm "Run the first sync now?"; then
+      say "skipped the first sync; the timer stays off until it has run"
+      return 0
+    fi
+    mkdir -p "$OBSIDIAN_DIR"
+    rclone mkdir gdrive:Obsidian || { warn "could not create gdrive:Obsidian"; return 1; }
+    "$BIN_DIR/obsidian-sync" --resync --resync-mode newer -P \
+      || { warn "the first sync did not finish; re-run install.sh to retry (repeating it is safe)"; return 1; }
+    mkdir -p "$(dirname "$OBSIDIAN_SEEDED_FILE")"
+    touch "$OBSIDIAN_SEEDED_FILE"
+  fi
+
+  systemctl --user enable --now obsidian-sync.timer || { warn "could not enable obsidian-sync.timer"; return 1; }
+  say "Vaults in $OBSIDIAN_DIR now sync with gdrive:Obsidian every 5 minutes."
+  say "  Logs: journalctl --user -u obsidian-sync"
+}
+
+say "Obsidian vault sync: keeps the vaults in $OBSIDIAN_DIR in step with a"
+say "  gdrive:Obsidian folder on Google Drive, so every machine sees the same notes."
+say "  - installs rclone and a user timer that syncs both ways every 5 minutes"
+say "  - needs an rclone remote named 'gdrive' with your own Google client ID"
+say "    (README.md has the steps; it is offered but not automated here)"
+say "  - workspace.json, caches and .trash are left out, so machines don't fight"
+say "    over window layout"
+if confirm "Set up the Obsidian vault sync?"; then
+  setup_obsidian_sync || warn "Obsidian vault sync did not finish"
+else
+  say "skipped Obsidian vault sync"
+fi
+
 echo
 say "done. Run: hyprctl reload && hyprctl configerrors"

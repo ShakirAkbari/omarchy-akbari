@@ -30,7 +30,8 @@ xwayland-primary-monitor, Plymouth boot screen theming (and its theme-set
 hook), the System menu's Reboot to Windows entry, the Claude app
 launcher, the Chromium hybrid GPU wrapper, and (if present) the
 personal-only monitor layout, Chromium flags, CoolerControl fan curves,
-web apps, and package list. Also the xrdp and wayvnc remote desktop setups.
+web apps, and package list. Also the xrdp and wayvnc remote desktop setups
+and the Obsidian vault sync (never your vaults or your Google Drive folder).
 
   -h, --help   Show this help.
 EOF
@@ -513,6 +514,28 @@ if [ -x "$REPO/bin/coolercontrol-apply-fans" ] && systemctl is-active --quiet co
   else
     say "left the CoolerControl fan curves in place"
   fi
+fi
+
+if [ -L "$BIN_DIR/obsidian-sync" ] || [ -L "$CONFIG_DIR/systemd/user/obsidian-sync.timer" ]; then
+  if confirm "Remove the Obsidian vault sync (stop the timer, drop the script, filter and unit files)?"; then
+    systemctl --user disable --now obsidian-sync.timer 2>/dev/null || true
+    systemctl --user stop obsidian-sync.service 2>/dev/null || true
+    unlink_ours "$REPO/config/systemd/user/obsidian-sync.timer" "$CONFIG_DIR/systemd/user/obsidian-sync.timer"
+    unlink_ours "$REPO/config/systemd/user/obsidian-sync.service" "$CONFIG_DIR/systemd/user/obsidian-sync.service"
+    systemctl --user daemon-reload
+    unlink_ours "$REPO/bin/obsidian-sync" "$BIN_DIR/obsidian-sync"
+    unlink_ours "$REPO/config/rclone/obsidian-filter.txt" "$CONFIG_DIR/rclone/obsidian-filter.txt"
+    # A marker install.sh wrote, not linked from the repo, so unlink_ours
+    # doesn't apply. Removing it makes a later install redo the first sync.
+    rm -f "$HOME/.local/state/omarchy-akbari/obsidian-sync-seeded"
+    say "Obsidian vault sync removed"
+    say "  Left alone on purpose: your vaults, the gdrive:Obsidian folder, the"
+    say "  rclone remote and login (~/.config/rclone/rclone.conf) and the rclone package."
+  else
+    say "left the Obsidian vault sync in place"
+  fi
+else
+  say "Obsidian vault sync not installed, nothing to do"
 fi
 
 echo

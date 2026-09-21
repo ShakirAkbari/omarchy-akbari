@@ -1,0 +1,13 @@
+[Unit]
+Description=Sync Obsidian vaults with Google Drive (rclone bisync)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# --resilient and --recover: retry after transient errors and resume an
+# interrupted run. --max-lock: treat a lock older than 5 minutes as stale, so a
+# killed run can't wedge every later sync. --conflict-resolve newer: when both
+# sides changed a note, the newer wins and the older is kept as a .conflict copy.
+ExecStart=%h/.local/bin/obsidian-sync --resilient --recover --max-lock 5m --conflict-resolve newer
+Nice=10

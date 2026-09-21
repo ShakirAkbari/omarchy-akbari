@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- `install.sh` / `uninstall.sh`: Obsidian vault sync to Google Drive. Keeps
+  `~/Documents/Obsidian` in step with `gdrive:Obsidian` using `rclone bisync`,
+  run by a user timer every 5 minutes.
+  - New `bin/obsidian-sync` wraps `rclone bisync` with the flags this needs:
+    `--transfers 100 --checkers 100`, because Drive is bound by per-file
+    latency and a vault is thousands of tiny notes (rclone's defaults ran at
+    about 1 file a second on a link good for 15 MB/s up). The paths can be
+    overridden with `OBSIDIAN_DIR` and `OBSIDIAN_REMOTE`.
+  - `config/systemd/user/obsidian-sync.{service,timer}`: every 5 minutes, 2
+    minutes after boot, with `--resilient --recover --max-lock 5m` so a killed
+    run can't leave a stale lock that blocks every later sync, and
+    `--conflict-resolve newer` (the loser is kept as a `.conflict` copy).
+  - `config/rclone/obsidian-filter.txt` leaves out `workspace.json`,
+    `workspace-mobile.json`, `.obsidian/cache`, `.trash` and temp files, which
+    each machine changes constantly.
+  - install.sh installs `rclone` and links all of the above, but does not
+    automate the Google login: it needs a browser and the user's own Google
+    client ID (rclone's shared one is being retired in 2026). With no `gdrive`
+    remote it prints where to find the steps and leaves the timer off. With
+    one, it asks, runs a first `--resync --resync-mode newer` (merges both
+    sides, the newer file wins, nothing is deleted), records that in
+    `~/.local/state/omarchy-akbari/obsidian-sync-seeded`, and only then
+    enables the timer.
+  - `uninstall.sh` stops the timer and removes the links and the marker. It
+    never touches the vaults, the Drive folder, `rclone.conf` or the package.
+  - README documents the Google Cloud setup step by step, including the
+    "Publish app" step that keeps the login from expiring after 7 days.
 - `install.sh` / `uninstall.sh`: remote desktop from Windows, over Tailscale
   only. Two independent, separately asked options, because Hyprland has no
   single server that does both jobs (`gnome-remote-desktop` and `krdp` need

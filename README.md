@@ -70,6 +70,13 @@ boot menu that actually shows up and can chainload Windows.
 |                                       session, Tailscale only      |
 |                                       (~/.config/wayvnc/, a user   |
 |                                       service, ufw rule, port 5900)|
+|  Obsidian vault sync          ---->  rclone + a user timer that    |
+|                                       syncs ~/Documents/Obsidian   |
+|                                       with gdrive:Obsidian every   |
+|                                       5 minutes (bin/obsidian-sync,|
+|                                       ~/.config/rclone/, a user    |
+|                                       service and timer). Needs a  |
+|                                       Google login you set up first|
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
@@ -105,7 +112,8 @@ detected; on a machine that also has an AMD or Intel GPU it offers the
 hybrid GPU wrapper instead), Plymouth boot screen theming, the System menu's Reboot to
 Windows entry, the Claude app launcher (only offered if `claude` is on
 your PATH), remote desktop from Windows (only offered if Tailscale is
-installed), and each personal-only piece), so you can decline anything
+installed), the Obsidian vault sync to Google Drive (needs a Google login
+you set up first, see below), and each personal-only piece), so you can decline anything
 you don't want on a given run. Piped in with no terminal attached
 (`curl ... | bash`), every question defaults to no.
 
@@ -218,6 +226,76 @@ retried every 10 seconds until Tailscale has an address. It captures one
 monitor, the one with the largest pixel area; switch with
 `wayvncctl output-list` and `wayvncctl output-set <name>`. Logs:
 `journalctl --user -u wayvnc`.
+
+## Obsidian vaults synced to Google Drive
+
+Keeps the vaults in `~/Documents/Obsidian` identical with a `gdrive:Obsidian`
+folder on Google Drive, so every machine sees the same notes. It is
+[`rclone bisync`](https://rclone.org/bisync/) run by a user timer every 5
+minutes, so a change on one machine shows up on another within about 5
+minutes. Each vault is a folder inside `~/Documents/Obsidian`; open them from
+there in Obsidian.
+
+install.sh installs `rclone`, links `bin/obsidian-sync`, the filter list and
+the two systemd user units, runs a first sync, and only then turns the timer
+on. What it can't do for you is the Google login, which needs a browser and
+your own client ID:
+
+1. **Create the credentials** (once, about 5 minutes, free). Google is
+   retiring rclone's shared client ID, so rclone asks for your own.
+   - Create a project at <https://console.cloud.google.com/projectcreate>,
+     then enable the **Google Drive API** for it
+     (<https://console.cloud.google.com/apis/library/drive.googleapis.com>).
+   - Open <https://console.cloud.google.com/auth/overview> and click
+     **Get started**: App name `rclone`, your email, audience **External**,
+     your email again as contact.
+   - **Data Access**: add the scope `https://www.googleapis.com/auth/drive`
+     under "Manually add scopes".
+   - **Clients**: create a client of type **Desktop app**, and **download the
+     JSON** before closing the dialog (the secret can't be shown again).
+   - **Audience**: click **Publish app**. Do not skip this: while it says
+     "Testing", the login expires every 7 days and sync silently stops.
+     Google's "verification required" banner does not apply to an app with
+     one user; the login page just shows an "unverified app" warning, so
+     click **Advanced**, then **Go to rclone (unsafe)**.
+2. **Create the remote.** Run `rclone config`, choose `n` (new), name it
+   `gdrive`, storage type `drive`, paste the client ID and secret, scope `1`
+   (full access), leave advanced config off, and say yes to the browser login.
+3. Run `./install.sh` and say yes to the Obsidian step.
+
+**On another machine**, skip step 1 and 2 and copy `~/.config/rclone/rclone.conf`
+from the first one with `scp` (it holds your Google login token, so don't send it
+over chat or email), then run `./install.sh`. Set the vaults up this way
+*before* opening them in Obsidian on the new machine, or you can end up with two
+diverging copies. The first sync merges both sides: files on only one side are
+copied across, the newer copy wins when both have one, and nothing is deleted.
+
+Good to know:
+
+- **Conflicts.** If two machines change the same note between syncs, the newer
+  one wins and the older is kept next to it as a `.conflict` copy, so nothing is
+  silently lost.
+- **Deletions sync too.** Delete a note on one machine and it disappears
+  from the others; on Drive it goes to the trash, where it stays recoverable.
+  bisync refuses to run if more than half the files vanish at once, which
+  protects against a vault folder that failed to mount.
+- **Left out** (`config/rclone/obsidian-filter.txt`): each vault's
+  `.obsidian/workspace.json` and `workspace-mobile.json` (window layout, which
+  every machine changes constantly), `.obsidian/cache`, `.trash`, and temp
+  files. Plugins and settings under `.obsidian` do sync.
+- **Speed.** Drive handles each file as a separate request, so a vault of
+  thousands of small notes crawls at about 1 file a second with rclone's
+  defaults, however fast your line is. `bin/obsidian-sync` runs 100 transfers
+  and 100 checkers, and the `gdrive` remote should have `pacer_min_sleep = 10ms`
+  and `pacer_burst = 200` (`rclone config update gdrive pacer_min_sleep=10ms pacer_burst=200`).
+  If you see `rateLimitExceeded`, lower the numbers.
+- **A stuck sync.** Killing rclone mid-run leaves a lock file. The timer passes
+  `--max-lock 5m`, so it clears itself; by hand, check `pgrep -a rclone`, then
+  remove the `.lck` file under `~/.cache/rclone/bisync/` that rclone names.
+- **Logs:** `journalctl --user -u obsidian-sync`. Status: `systemctl --user
+  list-timers obsidian-sync.timer`.
+- `uninstall.sh` stops the timer and removes the links. It never touches your
+  vaults, the Drive folder, `rclone.conf` or the `rclone` package.
 
 ## Uninstall
 

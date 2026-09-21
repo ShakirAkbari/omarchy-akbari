@@ -1,0 +1,16 @@
+#!/bin/sh
+# Two-way sync of the Obsidian vaults in ~/Documents/Obsidian with a folder on
+# Google Drive, using rclone bisync. Run by obsidian-sync.timer every 5 minutes;
+# also fine to run by hand. Extra arguments are passed straight to rclone.
+#
+#   First run on a machine:   obsidian-sync --resync --resync-mode newer -P
+#
+# The parallelism flags matter: Drive is bound by per-file latency, and a vault
+# is thousands of tiny notes, so rclone's defaults crawl at about 1 file a
+# second. (pacer_min_sleep and pacer_burst live in the gdrive remote.)
+#
+# OBSIDIAN_DIR and OBSIDIAN_REMOTE override the two paths, mostly for testing.
+exec rclone bisync "${OBSIDIAN_DIR:-$HOME/Documents/Obsidian}" "${OBSIDIAN_REMOTE:-gdrive:Obsidian}" \
+  --filters-file "${XDG_CONFIG_HOME:-$HOME/.config}/rclone/obsidian-filter.txt" \
+  --create-empty-src-dirs --drive-skip-gdocs \
+  --transfers 100 --checkers 100 "$@"

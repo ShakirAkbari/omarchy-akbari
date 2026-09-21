@@ -1,0 +1,10 @@
+# Files obsidian-sync leaves out. Per-machine UI state and junk: syncing them
+# makes every machine fight over window layout and caches.
+- .obsidian/workspace.json
+- .obsidian/workspace-mobile.json
+- .obsidian/cache
+- .trash/**
+- .DS_Store
+- Thumbs.db
+- *.tmp
+- .git/**
