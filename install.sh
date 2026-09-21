@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# omarchy-shakir installer. Idempotent: safe to re-run after a git pull.
+# omarchy-akbari installer. Idempotent: safe to re-run after a git pull.
 # Asks before every change it makes, so a re-run only touches what you say
 # yes to. Needs a real terminal to ask; piped in via `curl | bash` with no
 # tty, every question defaults to no and nothing gets installed.
 #
 # Default: config that is safe and useful for anyone (keybindings, look'n'feel,
-# numlock on boot, a Limine boot menu with a real timeout).
+# a Limine boot menu with a real timeout).
 #
 # -p / --personal: also offers machine-specific pieces (monitor layout,
 # full package list) that only make sense on the author's own machines.
@@ -94,7 +94,7 @@ if ! command -v omarchy >/dev/null 2>&1; then
   exit 1
 fi
 
-say "This installs the omarchy-shakir config, one piece at a time."
+say "This installs the omarchy-akbari config, one piece at a time."
 say "Each step below explains what it does, then asks yes/no; say no to skip it."
 say "  Nothing here is silent: every change is announced as it happens, and"
 say "  anything it would overwrite is backed up next to itself first."
@@ -161,43 +161,7 @@ else
   say "skipped hypr-goldenspiral"
 fi
 
-# 4. Numlock on boot, before any login screen --------------------------------- #
-say "Numlock on boot: turns numlock on before you ever see a login prompt,"
-say "  covering both the SDDM login screen and the text console."
-say "  - SDDM greeter config (Numlock=on), plus the greeter's own bundled"
-say "    Hyprland config: the greeter runs a separate Hyprland instance"
-say "    with its own config, which ignores the session's"
-say "    input.numlock_by_default."
-say "  - A systemd service that turns numlock on for the text console too."
-say "  Needs sudo. The greeter's Hyprland config is owned by the"
-say "  omarchy-settings package, so an 'omarchy update' that touches it"
-say "  reverts this; just re-run install.sh again after that happens."
-if confirm "Enable numlock on boot?"; then
-  sudo install -Dm644 "$REPO/config/sddm/50-numlock.conf" /etc/sddm.conf.d/50-numlock.conf
-  sudo install -Dm644 "$REPO/config/systemd/numlock-console.service" /etc/systemd/system/numlock-console.service
-  # The SDDM Wayland greeter runs its own Hyprland instance with its own
-  # config, separate from the session config that require("hypr.goldenspiral")
-  # etc. get wired into. It ignores input.numlock_by_default unless this file
-  # sets it too, and is owned by the omarchy-settings package, so it gets
-  # overwritten back to Omarchy's default by every `omarchy update` that
-  # touches that package: this step needs re-running after such an update.
-  # It pre-exists (unlike the two installs above), so back it up once, the
-  # same way the Limine step does, rather than losing Omarchy's original.
-  sddm_hypr=/usr/share/sddm/hyprland.lua
-  if [ -f "$sddm_hypr" ] && [ ! -f "$sddm_hypr.bak.omarchy-shakir" ] && \
-     ! cmp -s "$REPO/config/sddm/hyprland.lua" "$sddm_hypr"; then
-    sudo cp "$sddm_hypr" "$sddm_hypr.bak.omarchy-shakir"
-    say "backed up $sddm_hypr"
-  fi
-  sudo install -Dm644 "$REPO/config/sddm/hyprland.lua" "$sddm_hypr"
-  sudo systemctl daemon-reload
-  sudo systemctl enable --now numlock-console.service
-  say "numlock enabled"
-else
-  say "skipped numlock setup"
-fi
-
-# 5. Windows dual-boot: pick which entry, if more than one --------------------- #
+# 4. Windows dual-boot: pick which entry, if more than one --------------------- #
 # Not personal-only, and independent of whether the Limine and System-menu
 # steps below are used or even applicable on this machine. There's no
 # UEFI-level "most recently booted" to sort out which Windows Boot Manager
@@ -217,8 +181,8 @@ if command -v efibootmgr >/dev/null 2>&1; then
       say "  Manager entry on this machine (a stale leftover from a previous"
       say "  install, or a since-removed drive, is common; firmware doesn't"
       say "  track which one is current)."
-      say "  Picking one here feeds both the Limine boot menu entry (step 6)"
-      say "  and the System menu's Reboot to Windows entry (step 12) below;"
+      say "  Picking one here feeds both the Limine boot menu entry (step 5)"
+      say "  and the System menu's Reboot to Windows entry (step 11) below;"
       say "  skipping this leaves both with nothing to offer this run."
       i=1
       for entry in "${win_entries[@]}"; do
@@ -232,7 +196,7 @@ if command -v efibootmgr >/dev/null 2>&1; then
       fi
       if [ -n "$choice" ] && [ "$choice" -ge 1 ] 2>/dev/null && [ "$choice" -le "${#win_entries[@]}" ] 2>/dev/null; then
         IFS=$'\t' read -r _ picked_name picked_guid <<< "${win_entries[$((choice - 1))]}"
-        WINDOWS_STATE_FILE="$HOME/.local/state/omarchy-shakir/windows-boot-guid"
+        WINDOWS_STATE_FILE="$HOME/.local/state/omarchy-akbari/windows-boot-guid"
         mkdir -p "$(dirname "$WINDOWS_STATE_FILE")"
         printf '%s\n' "$picked_guid" > "$WINDOWS_STATE_FILE"
         say "saved '$picked_name' as the Windows entry to use"
@@ -243,7 +207,7 @@ if command -v efibootmgr >/dev/null 2>&1; then
   fi
 fi
 
-# 6. Limine boot menu: real timeout + Windows dual-boot entry ---------------- #
+# 5. Limine boot menu: real timeout + Windows dual-boot entry ---------------- #
 LIMINE_CONF="/boot/limine.conf"
 say "Limine boot menu: sets a 5-second timeout (Omarchy's default has none, so"
 say "  the menu flashes past) and can add a Windows entry. Backs up the file first."
@@ -287,18 +251,18 @@ else
   fi
 
   if command -v efibootmgr >/dev/null 2>&1 && ! sudo grep -q '^/+Windows' "$LIMINE_CONF"; then
-    # Same picker step 5 above already made executable and, if there was
+    # Same picker step 4 above already made executable and, if there was
     # more than one entry, already asked about; this just uses its answer.
     if ! pick="$("$REPO/bin/omarchy-pick-windows-boot-entry")"; then
       say "no Windows Boot Manager entry resolved (none found, or more than"
-      say "  one with nothing chosen in step 5), skipping dual-boot entry"
+      say "  one with nothing chosen in step 4), skipping dual-boot entry"
     else
       IFS=$'\t' read -r _ name guid <<< "$pick"
       if confirm "Add a Limine entry chainloading '$name' at partition $guid?"; then
         limine_backup
         {
           printf '\n/+%s\n' "$name"
-          printf '    comment: added by omarchy-shakir\n'
+          printf '    comment: added by omarchy-akbari\n'
           printf '    protocol: efi\n'
           printf '    path: guid(%s):/EFI/Microsoft/Boot/bootmgfw.efi\n' "$guid"
         } | sudo tee -a "$LIMINE_CONF" > /dev/null
@@ -310,7 +274,7 @@ else
   fi
 fi
 
-# 7. Fix Right Ctrl in Remmina (remap host key) ------------------------------ #
+# 6. Fix Right Ctrl in Remmina (remap host key) ------------------------------ #
 REMMINA_PREF="$CONFIG_DIR/remmina/remmina.pref"
 if [ -f "$REMMINA_PREF" ]; then
   say "Remmina Right Ctrl fix: Remmina's default Host key is Right Ctrl,"
@@ -332,7 +296,7 @@ if [ -f "$REMMINA_PREF" ]; then
   fi
 fi
 
-# 8. Remmina: default new RDP connections to local audio redirect ------------ #
+# 7. Remmina: default new RDP connections to local audio redirect ------------ #
 if [ -f "$REMMINA_PREF" ]; then
   say "Remmina RDP audio: Remmina's default for a new RDP connection is"
   say "  sound=off, so remote audio goes nowhere unless you change it per"
@@ -357,7 +321,7 @@ if [ -f "$REMMINA_PREF" ]; then
   fi
 fi
 
-# 9. XWayland: make the largest connected monitor the primary output -------- #
+# 8. XWayland: make the largest connected monitor the primary output -------- #
 say "XWayland primary monitor: Hyprland/XWayland never pick a primary output"
 say "  on their own; whichever monitor enumerates first (often just whichever"
 say "  one happens to be plugged in first) ends up primary, regardless of"
@@ -379,7 +343,7 @@ else
   say "skipped xwayland-primary-monitor"
 fi
 
-# 10. NVIDIA hardware video decode for Chromium ------------------------------- #
+# 9. NVIDIA hardware video decode for Chromium ------------------------------- #
 # Not personal-only: gated on actually having an NVIDIA GPU (via lspci)
 # instead of the -p flag, so it's offered on any machine that has one, not
 # just the author's own.
@@ -402,7 +366,7 @@ if lspci -d '10de:' 2>/dev/null | grep -qE 'VGA compatible controller|3D control
   fi
 fi
 
-# 11. Plymouth boot/unlock screen: matches the theme, plus a signature ------- #
+# 10. Plymouth boot/unlock screen: matches the theme, plus a signature ------- #
 # Not personal-only: Plymouth theming has nothing to do with author-specific
 # hardware, it just recolors whichever Omarchy theme is currently selected,
 # so anyone running Omarchy benefits.
@@ -450,18 +414,18 @@ else
   say "skipped Plymouth boot screen customization"
 fi
 
-# 12. System menu: add a "Reboot to Windows" entry ---------------------------- #
+# 11. System menu: add a "Reboot to Windows" entry ---------------------------- #
 # Not personal-only: the row only ever shows up in the menu when efibootmgr
 # reports a Windows Boot Manager entry (see the "when" condition in
 # config/omarchy/omarchy-menu.jsonc), so it's inert on a machine without one;
 # this check just avoids asking about it at all in that case. Same picker
-# bin/omarchy-reboot-to-windows itself uses (and step 5 above already made
+# bin/omarchy-reboot-to-windows itself uses (and step 4 above already made
 # executable and, if needed, asked about), so "is there one to offer" and
 # "which one gets used" never disagree.
 if command -v efibootmgr >/dev/null 2>&1 && "$REPO/bin/omarchy-pick-windows-boot-entry" >/dev/null 2>&1; then
   say "System menu: adds a 'Reboot to Windows' entry to the System menu."
   say "  Sets the UEFI BootNext flag to the Windows Boot Manager entry"
-  say "  resolved in step 5, then reboots into it."
+  say "  resolved in step 4, then reboots into it."
   say "  One-shot: BootOrder (and Omarchy as the regular default) is"
   say "  untouched for every boot after that. Needs sudo, same as the"
   say "  reboot/shutdown entries already in that menu."
@@ -477,8 +441,30 @@ if command -v efibootmgr >/dev/null 2>&1 && "$REPO/bin/omarchy-pick-windows-boot
   fi
 else
   say "no Windows Boot Manager entry resolved (none found, or more than one"
-  say "  with nothing chosen in step 5), skipping the Reboot to Windows"
+  say "  with nothing chosen in step 4), skipping the Reboot to Windows"
   say "  menu entry"
+fi
+
+# 12. Claude app launcher ------------------------------------------------------ #
+# Not personal-only: it only launches whatever `claude` is on PATH, so it's
+# inert without Claude Code, and this check just avoids asking in that case.
+# Same shape as Omarchy's own TUI entries (Docker, Disk Usage): a .desktop
+# file that opens the command in a tiled terminal window, plus an icon.
+if command -v claude >/dev/null 2>&1; then
+  say "Claude app launcher: adds 'Claude' to the app launcher (SUPER+SPACE)"
+  say "  like your other apps. It opens Claude Code in a tiled terminal"
+  say "  window (the same way the Docker entry opens its TUI), with the"
+  say "  Claude icon."
+  if confirm "Add the Claude app launcher?"; then
+    link "$REPO/config/applications/Claude.desktop" "$HOME/.local/share/applications/Claude.desktop"
+    link "$REPO/config/icons/claude.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/claude.svg"
+    gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" >/dev/null 2>&1 || true
+    say "added Claude to the app launcher"
+  else
+    say "skipped the Claude app launcher"
+  fi
+else
+  say "claude not found on PATH, skipping the Claude app launcher"
 fi
 
 # 13. Personal-only: monitor layout, startup workspace, full package list --- #

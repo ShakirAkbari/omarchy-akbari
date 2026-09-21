@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# omarchy-shakir uninstaller. Mirrors install.sh: asks before every removal,
+# omarchy-akbari uninstaller. Mirrors install.sh: asks before every removal,
 # and only touches things it can verify it actually installed (a symlink
 # still pointing at this repo, a require line still present, and so on).
 # Safe to re-run: anything already removed is reported and skipped, not
@@ -24,10 +24,12 @@ usage() {
 Usage: uninstall.sh [-h|--help]
 
 Asks before removing each piece install.sh installed: keybindings, Spotify
-keys, hypr-goldenspiral, numlock, the Limine Windows entry,
+keys, hypr-goldenspiral, the numlock-on-boot setup older versions installed
+(cleanup only), the Limine Windows entry,
 xwayland-primary-monitor, Plymouth boot screen theming (and its theme-set
-hook), the System menu's Reboot to Windows entry, and (if present) the
-personal-only monitor layout, Chromium flags, and package list.
+hook), the System menu's Reboot to Windows entry, the Claude app
+launcher, and (if present) the personal-only monitor layout, Chromium
+flags, and package list.
 
   -h, --help   Show this help.
 EOF
@@ -138,9 +140,12 @@ else
   say "hypr-goldenspiral directory not present, nothing to do"
 fi
 
-# 4. Numlock on boot ---------------------------------------------------------- #
+# 4. Numlock on boot: cleanup only. install.sh no longer sets this up (it was
+# buggy and was dropped), but machines installed earlier still have it.
 SDDM_HYPR=/usr/share/sddm/hyprland.lua
-SDDM_HYPR_BAK="$SDDM_HYPR.bak.omarchy-shakir"
+SDDM_HYPR_BAK="$SDDM_HYPR.bak.omarchy-akbari"
+# Made under the old repo name (omarchy-shakir) on machines set up before the rename.
+[ -f "$SDDM_HYPR_BAK" ] || SDDM_HYPR_BAK="$SDDM_HYPR.bak.omarchy-shakir"
 if [ -f /etc/systemd/system/numlock-console.service ] || [ -f /etc/sddm.conf.d/50-numlock.conf ] || [ -f "$SDDM_HYPR_BAK" ]; then
   if confirm "Disable numlock-on-boot and remove its files (needs sudo)?"; then
     sudo systemctl disable --now numlock-console.service 2>/dev/null || true
@@ -163,8 +168,8 @@ fi
 # /boot is usually root-only, so reads of it need sudo (see install.sh).
 if ! sudo test -f "$LIMINE_CONF"; then
   say "no $LIMINE_CONF, nothing to do"
-elif ! sudo grep -q 'comment: added by omarchy-shakir' "$LIMINE_CONF" 2>/dev/null; then
-  say "no omarchy-shakir Limine entry found, nothing to do"
+elif ! sudo grep -Eq 'comment: added by omarchy-(akbari|shakir)' "$LIMINE_CONF" 2>/dev/null; then
+  say "no omarchy-akbari (or older omarchy-shakir) Limine entry found, nothing to do"
   warn "the Limine timeout (if set to 5s) is left as is; restore a /boot/limine.conf.bak.* if you want it back"
 elif confirm "Remove the Windows entry this repo added to $LIMINE_CONF (backs it up first, needs sudo)?"; then
   sudo cp "$LIMINE_CONF" "$LIMINE_CONF.bak.$(date +%s)"
@@ -180,7 +185,7 @@ elif confirm "Remove the Windows entry this repo added to $LIMINE_CONF (backs it
     }
     buf != "" {
       buf = buf $0 "\n"
-      if ($0 ~ /added by omarchy-shakir/) skip = 1
+      if ($0 ~ /added by omarchy-(akbari|shakir)/) skip = 1
       next
     }
     { print }
@@ -337,7 +342,9 @@ else
 fi
 
 PLYMOUTH_SCRIPT=/usr/share/plymouth/themes/omarchy/omarchy.script
-PLYMOUTH_SCRIPT_BAK="$PLYMOUTH_SCRIPT.bak.omarchy-shakir"
+PLYMOUTH_SCRIPT_BAK="$PLYMOUTH_SCRIPT.bak.omarchy-akbari"
+# Made under the old repo name (omarchy-shakir) on machines set up before the rename.
+[ -f "$PLYMOUTH_SCRIPT_BAK" ] || PLYMOUTH_SCRIPT_BAK="$PLYMOUTH_SCRIPT.bak.omarchy-shakir"
 if [ -f "$PLYMOUTH_SCRIPT_BAK" ]; then
   if confirm "Restore the Plymouth boot/unlock screen from before the theme recolor, wordmark, and watermark (needs sudo, rebuilds the initramfs)?"; then
     sudo mv "$PLYMOUTH_SCRIPT_BAK" "$PLYMOUTH_SCRIPT"
@@ -376,7 +383,21 @@ else
   say "omarchy-reboot-to-windows not installed, nothing to do"
 fi
 
-WINDOWS_STATE_FILE="$HOME/.local/state/omarchy-shakir/windows-boot-guid"
+if [ -L "$HOME/.local/share/applications/Claude.desktop" ]; then
+  if confirm "Remove the Claude app launcher from the app launcher?"; then
+    unlink_ours "$REPO/config/applications/Claude.desktop" "$HOME/.local/share/applications/Claude.desktop"
+    unlink_ours "$REPO/config/icons/claude.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/claude.svg"
+    gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" >/dev/null 2>&1 || true
+  else
+    say "left the Claude app launcher in place"
+  fi
+else
+  say "Claude app launcher not installed, nothing to do"
+fi
+
+WINDOWS_STATE_FILE="$HOME/.local/state/omarchy-akbari/windows-boot-guid"
+# Saved under the old repo name (omarchy-shakir) on machines set up before the rename.
+[ -f "$WINDOWS_STATE_FILE" ] || WINDOWS_STATE_FILE="$HOME/.local/state/omarchy-shakir/windows-boot-guid"
 if [ -f "$WINDOWS_STATE_FILE" ]; then
   if confirm "Remove the saved Windows dual-boot choice ($WINDOWS_STATE_FILE)?"; then
     rm -f "$WINDOWS_STATE_FILE"

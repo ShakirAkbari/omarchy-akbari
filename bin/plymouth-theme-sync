@@ -72,8 +72,10 @@ if command -v magick >/dev/null 2>&1 && [ -f "$asset_dir/bullet.png" ]; then
 fi
 
 if [ -f "$PLYMOUTH_SCRIPT" ]; then
-  if ! grep -qF "wordmark.text" "$PLYMOUTH_SCRIPT" && [ ! -f "$PLYMOUTH_SCRIPT.bak.omarchy-shakir" ]; then
-    sudo cp "$PLYMOUTH_SCRIPT" "$PLYMOUTH_SCRIPT.bak.omarchy-shakir"
+  # (.bak.omarchy-shakir is the same backup, made before the repo rename.)
+  if ! grep -qF "wordmark.text" "$PLYMOUTH_SCRIPT" && [ ! -f "$PLYMOUTH_SCRIPT.bak.omarchy-akbari" ] \
+     && [ ! -f "$PLYMOUTH_SCRIPT.bak.omarchy-shakir" ]; then
+    sudo cp "$PLYMOUTH_SCRIPT" "$PLYMOUTH_SCRIPT.bak.omarchy-akbari"
     say "backed up $PLYMOUTH_SCRIPT"
   fi
   # No Omarchy-supported way to add extra text to this screen exists

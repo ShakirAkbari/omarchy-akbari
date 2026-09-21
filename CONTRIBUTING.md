@@ -38,11 +38,9 @@ Run `./install.sh` on a real Omarchy machine (a VM is fine), then:
 ```sh
 hyprctl reload
 hyprctl configerrors        # must be empty
-systemctl status numlock-console.service
 ```
 
-Confirm numlock is on before any login prompt, and that `/boot/limine.conf`
-picked up a `timeout:` line and, if you said yes to it, a `/+Windows 11`
+Confirm `/boot/limine.conf` picked up a `timeout:` line and, if you said yes to it, a `/+Windows 11`
 entry with a real partition GUID.
 
 ## Attribution

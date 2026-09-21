@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- Renamed the project from `omarchy-shakir` to `omarchy-akbari`. Backups,
+  the Limine entry comment and the saved-state directory now use the new
+  name (`*.bak.omarchy-akbari`, `comment: added by omarchy-akbari`,
+  `~/.local/state/omarchy-akbari/`). Files an older install already made
+  under `omarchy-shakir` are still recognized: `install.sh` won't re-back
+  up over an existing `.bak.omarchy-shakir`, `bin/omarchy-pick-windows-boot-entry`
+  falls back to the old state file, and `uninstall.sh` restores from or
+  removes the old-named backups and Limine entry too. Symlinks installed
+  under the old checkout path need re-running `install.sh` from the renamed
+  directory (or re-linking) once.
+- `install.sh` / `uninstall.sh`: new Claude app launcher step. Adds
+  `Claude.desktop` (opens `claude` in a tiled terminal via
+  `xdg-terminal-exec --app-id=TUI.tile`, like Omarchy's own Docker and Disk
+  Usage entries) and a Claude icon to the app launcher. Only offered when
+  `claude` is on PATH.
+- Removed the numlock-on-boot step from `install.sh` (the SDDM greeter
+  config, the patched `/usr/share/sddm/hyprland.lua` and the
+  `numlock-console` systemd service): it was buggy. `config/sddm/` and
+  `config/systemd/` are gone and the remaining install steps are
+  renumbered. `uninstall.sh` still offers to remove what an older install
+  left behind (disables the service, deletes its files, restores the
+  greeter's Hyprland config from backup), so run it on any machine that
+  already has numlock-on-boot installed.
 - `install.sh` and `uninstall.sh`: fix the Limine step silently doing
   nothing. `/boot` is root-only on a stock Omarchy install (the ESP is
   mounted with umask 0077), so `[ -f /boot/limine.conf ]` and the `grep`

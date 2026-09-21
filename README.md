@@ -1,9 +1,9 @@
-# omarchy-shakir
+# omarchy-akbari
 
 A post-install setup for [Omarchy](https://omarchy.org). Run this once after a
 fresh Omarchy install and it gets a machine to the state I actually use:
 keybindings, look'n'feel, the [golden-spiral layout](https://github.com/ShakirAkbari/hypr-goldenspiral)
-and its taskbar, numlock on before you ever see a login screen, and a Limine
+and its taskbar, and a Limine
 boot menu that actually shows up and can chainload Windows.
 
 ```
@@ -18,12 +18,8 @@ boot menu that actually shows up and can chainload Windows.
 |                                       up hypr-chronobar as a     |
 |                                       dependency), then wired    |
 |                                       into hyprland.lua          |
-|  numlock (sddm + systemd)     ---->  /etc/sddm.conf.d/,          |
-|                                       /etc/systemd/system/,      |
-|                                       /usr/share/sddm/           |
-|                                       hyprland.lua (backed up)   |
 |  Windows dual-boot entry      ---->  ~/.local/state/            |
-|                                       omarchy-shakir/             |
+|                                       omarchy-akbari/             |
 |                                       windows-boot-guid (only     |
 |                                       asked about when            |
 |                                       efibootmgr reports more     |
@@ -55,6 +51,12 @@ boot menu that actually shows up and can chainload Windows.
 |                                       ~/.config/omarchy/           |
 |                                       extensions/                  |
 |                                       omarchy-menu.jsonc           |
+|  Claude app launcher           ---->  ~/.local/share/            |
+|                                       applications/Claude.desktop  |
+|                                       and an icon under            |
+|                                       ~/.local/share/icons/        |
+|                                       (only offered if claude is   |
+|                                       on PATH)                     |
 |                                                                  |
 |  -p / --personal only:                                          |
 |    monitors.lua.personal      ---->  ~/.config/hypr/monitors.lua |
@@ -72,17 +74,18 @@ boot menu that actually shows up and can chainload Windows.
 ## Install
 
 ```sh
-git clone https://github.com/ShakirAkbari/omarchy-shakir.git ~/Projects/omarchy-shakir
-cd ~/Projects/omarchy-shakir
+git clone https://github.com/ShakirAkbari/omarchy-akbari.git ~/Projects/omarchy-akbari
+cd ~/Projects/omarchy-akbari
 ./install.sh
 ```
 
 It asks a yes/no question before each step (keybindings, Spotify keys,
-hypr-goldenspiral, numlock, Limine, fix Right Ctrl in Remmina (remap host
+hypr-goldenspiral, Limine, fix Right Ctrl in Remmina (remap host
 key), Remmina's audio redirect default, xwayland-primary-monitor, NVIDIA
 hardware video decode for Chromium (only offered if an NVIDIA GPU is
 detected), Plymouth boot screen theming, the System menu's Reboot to
-Windows entry, and each personal-only piece), so you can decline anything
+Windows entry, the Claude app launcher (only offered if `claude` is on
+your PATH), and each personal-only piece), so you can decline anything
 you don't want on a given run. Piped in with no terminal attached
 (`curl ... | bash`), every question defaults to no.
 
@@ -155,7 +158,7 @@ it everywhere else.
 
 Mirrors `install.sh`: asks a yes/no question before removing each piece, and
 only touches something if it can verify this repo actually put it there (a
-symlink still pointing here, a require line still present, an omarchy-shakir
+symlink still pointing here, a require line still present, an omarchy-akbari
 comment marker in `/boot/limine.conf`). Anything it doesn't recognize, or
 that's already gone, is reported and left alone rather than guessed at.
 
@@ -187,29 +190,10 @@ A few things it won't do for you:
 
 - Omarchy (checked at the top of `install.sh`; the `o.*` / `hl.*` Lua config
   API this repo uses is Omarchy's, not vanilla Hyprland).
-- `sudo` access, for the numlock service and (if you confirm it) the Limine
-  edit.
+- `sudo` access, for the Limine edit (if you confirm it) and the Plymouth
+  boot screen step.
 - Limine as the bootloader, for the boot-menu step. If it's not present,
   that step is skipped with a message; everything else still runs.
-
-## Why numlock needs three fixes
-
-SDDM's own `Numlock=on` setting is ignored once autologin is enabled, which
-is Omarchy's default. So this also installs a small systemd service that
-turns numlock on for every virtual console (`setleds -D +num`) before any
-login screen renders, independent of SDDM.
-
-Neither of those reaches the greeter you actually see, though: on Omarchy,
-SDDM's Wayland greeter is itself a Hyprland session, started via its own
-config at `/usr/share/sddm/hyprland.lua` (separate from `~/.config/hypr/`,
-and owned by the `omarchy-settings` package, not this repo). That config
-doesn't set `input.numlock_by_default`, so numpad digits don't register when
-typing your password there even with the other two fixes in place. This repo
-installs a copy of that file with `numlock_by_default = true` added, backed
-up once to `hyprland.lua.bak.omarchy-shakir` so uninstall can restore
-Omarchy's original. It gets overwritten back to Omarchy's default by any
-`omarchy update` that touches `omarchy-settings`, so re-run `install.sh`
-after one if numlock stops working at the greeter again.
 
 ## Why shakir.spotify reads Mpris directly instead of Omarchy's media service
 
@@ -260,7 +244,7 @@ whatever the recolor above just did, theme-agnostically. The password field
 shifts down to sit under the wordmark instead of directly under the icon.
 Inserting the wordmark and watermark is one-time (each guarded on its own
 marker text, and the pre-patch script backed up once to
-`omarchy.script.bak.omarchy-shakir`), but recoloring them is not: every run
+`omarchy.script.bak.omarchy-akbari`), but recoloring them is not: every run
 repaints both to the current sampled color, so a later theme switch updates
 them the same way it already updates the icon, lock, entry, and bullet
 images.

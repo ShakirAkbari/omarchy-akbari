@@ -13,7 +13,7 @@ The layout and taskbar already live in their own repo,
 its own install script, tests, and CI. Duplicating that code here would mean
 two copies drifting apart. So `install.sh` clones and delegates to it instead
 of vendoring it: this repo owns the things that don't have a home elsewhere
-(keybindings, look'n'feel, numlock, the Limine menu) and orchestrates the
+(keybindings, look'n'feel, the Limine menu) and orchestrates the
 rest.
 
 ## Why `-p` / `--personal` exists
@@ -28,19 +28,8 @@ Two of the things this repo installs are not generic:
 
 Rather than leave these out entirely, they're gated behind a flag so the
 same repo serves both cases: `./install.sh` for anyone who wants the shared
-parts (keybindings, look'n'feel, layout, numlock, boot menu), `./install.sh
+parts (keybindings, look'n'feel, layout, boot menu), `./install.sh
 -p` for setting up one of my own machines.
-
-## Why numlock needed two separate fixes
-
-SDDM has a documented `Numlock=on` setting, but SDDM's own docs note it is
-"currently ignored if autologin is enabled." Omarchy's installer turns
-autologin on by default, so that setting alone does nothing on a stock
-Omarchy box. The fix is a systemd oneshot service that runs `setleds -D
-+num` against every virtual console directly, ordered before `sddm.service`
-and `getty@tty1.service`, so numlock is already on by the time anything
-renders. The SDDM setting is still installed too, for the case where
-someone has turned autologin off.
 
 ## Why the Limine entry is auto-detected, not hardcoded
 

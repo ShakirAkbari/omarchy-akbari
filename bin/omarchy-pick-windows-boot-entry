@@ -25,7 +25,9 @@
 # that needs a guess to avoid ending up broken.
 set -euo pipefail
 
-STATE_FILE="$HOME/.local/state/omarchy-shakir/windows-boot-guid"
+STATE_FILE="$HOME/.local/state/omarchy-akbari/windows-boot-guid"
+# Saved here by install.sh before the repo was renamed from omarchy-shakir.
+[ -f "$STATE_FILE" ] || STATE_FILE="$HOME/.local/state/omarchy-shakir/windows-boot-guid"
 
 # Each match is "<boot id>\t<entry name>\t<partition GUID>". Using mapfile
 # over a process substitution, rather than a plain $(...) capture, means

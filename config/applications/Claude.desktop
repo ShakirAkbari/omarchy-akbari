@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Claude
+Comment=Claude Code, Anthropic's coding agent, in a terminal
+Exec=xdg-terminal-exec --app-id=TUI.tile -e claude
+Terminal=false
+Type=Application
+Icon=claude
+Categories=Development;
+StartupNotify=true
