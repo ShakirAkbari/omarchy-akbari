@@ -2,15 +2,22 @@
 """Apply (or remove) the fan setup in config/coolercontrol/fans.json via
 CoolerControl's REST API, so it does not depend on hand-clicking the GUI.
 
-  coolercontrol-apply-fans            create the function/profiles if missing,
+  coolercontrol-apply-fans            create the functions/profiles if missing,
                                       then assign them to the fan channels
   coolercontrol-apply-fans --remove   put those channels back to Unmanaged and
-                                      delete the function/profiles it made
+                                      delete the functions/profiles it made
 
 Idempotent: a function or profile that already exists by name is reused, not
 duplicated or overwritten (edit it in the CoolerControl app, or --remove and
 re-apply, to change it). Talks to the local daemon only. Password: $CC_PASSWORD,
 else the daemon's default, else it asks.
+
+Each Graph profile in fans.json names a temperature source by device "type"
+(as CoolerControl reports it: "CPU", "GPU", "Hwmon", ...), optionally narrowed
+by exact device "temp_device_name" and/or CoolerControl's own "type_index"
+(its stable per-type device ordinal) when more than one device shares a type
+or name -- e.g. two GPUs, or four identical RAM-stick sensors. The match must
+resolve to exactly one device or the script refuses to guess.
 """
 import base64
 import getpass
@@ -24,6 +31,7 @@ import uuid
 
 BASE = "http://127.0.0.1:11987"
 UNMANAGED = "0"
+DEFAULT_FUNCTION = "0"
 CONFIG = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "config", "coolercontrol", "fans.json")
 
 jar = http.cookiejar.CookieJar()
@@ -70,6 +78,26 @@ def login():
     die("login failed")
 
 
+def find_temp_source(devices, pc):
+    """Resolve a Graph profile's temp source to exactly one device+temp, or die."""
+    candidates = [d for d in devices if d["type"] == pc["temp_device_type"]]
+    if "temp_device_name" in pc:
+        candidates = [d for d in candidates if d["name"] == pc["temp_device_name"]]
+    if "temp_device_type_index" in pc:
+        candidates = [d for d in candidates if d.get("type_index") == pc["temp_device_type_index"]]
+    if len(candidates) != 1:
+        desc = pc.get("temp_device_name", pc["temp_device_type"])
+        die(f"profile '{pc['name']}': {len(candidates)} devices match {desc} "
+            f"(need exactly 1); narrow it with temp_device_name/temp_device_type_index")
+    src = candidates[0]
+    temp = src["info"]["temps"].get(pc["temp_name"])
+    suffix = pc.get("temp_label_suffix")
+    if not temp or (suffix and not temp["label"].endswith(suffix)):
+        die(f"profile '{pc['name']}': temperature source {pc['temp_device_type']}/{pc['temp_name']} "
+            f"({suffix or 'any label'}) not found on {src['name']}")
+    return src
+
+
 def main():
     remove = "--remove" in sys.argv[1:]
     with open(CONFIG) as f:
@@ -96,14 +124,15 @@ def main():
             if p["name"] in profs:
                 call("DELETE", f"/profiles/{profs[p['name']]['uid']}")
                 print(f"deleted profile {p['name']}")
-        fname = cfg["function"]["name"]
-        if fname in funcs:
-            call("DELETE", f"/functions/{funcs[fname]['uid']}")
-            print(f"deleted function {fname}")
+        for fc in cfg["functions"]:
+            if fc["name"] in funcs:
+                call("DELETE", f"/functions/{funcs[fc['name']]['uid']}")
+                print(f"deleted function {fc['name']}")
         return
 
-    fc = cfg["function"]
-    if fc["name"] not in funcs:
+    for fc in cfg["functions"]:
+        if fc["name"] in funcs:
+            continue
         funcs[fc["name"]] = {
             "uid": str(uuid.uuid4()), "name": fc["name"], "f_type": "Standard",
             "duty_minimum": fc["duty_minimum"], "duty_maximum": fc["duty_maximum"],
@@ -114,20 +143,18 @@ def main():
         }
         call("POST", "/functions", funcs[fc["name"]])
         print(f"created function {fc['name']}")
-    func_uid = funcs[fc["name"]]["uid"]
 
     for pc in cfg["profiles"]:
         if pc["name"] in profs:
             continue
+        func_name = pc.get("function")
+        func_uid = funcs[func_name]["uid"] if func_name else DEFAULT_FUNCTION
         p = {"uid": str(uuid.uuid4()), "p_type": pc["type"], "name": pc["name"],
              "speed_fixed": None, "speed_profile": None, "temp_source": None,
              "temp_min": None, "temp_max": None, "function_uid": UNMANAGED,
              "member_profile_uids": [], "mix_function_type": None, "offset_profile": None}
         if pc["type"] == "Graph":
-            src = next((d for d in devices if d["type"] == pc["temp_device_type"]), None)
-            temp = src and src["info"]["temps"].get(pc["temp_name"])
-            if not temp or not temp["label"].endswith(pc["temp_label_suffix"]):
-                die(f"temperature source {pc['temp_device_type']}/{pc['temp_name']} ({pc['temp_label_suffix']}) not found")
+            src = find_temp_source(devices, pc)
             p.update(speed_profile=[[float(t), d] for t, d in pc["curve"]],
                      temp_source={"temp_name": pc["temp_name"], "device_uid": src["uid"]},
                      temp_min=20.0, temp_max=100.0, function_uid=func_uid)

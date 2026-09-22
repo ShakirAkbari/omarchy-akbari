@@ -757,15 +757,17 @@ if [ "$PERSONAL" -eq 1 ]; then
     fi
   fi
 
-  # Carried over from Windows FanControl; the settings live in
-  # config/coolercontrol/fans.json (raw original in fancontrol-windows.json).
-  # Goes through CoolerControl's REST API, since its config.toml is root-owned
-  # and its profile format is the daemon's to write, not ours.
+  # CPU/pump curves carried over from Windows FanControl, Ram/GPU curves added
+  # later; the settings live in config/coolercontrol/fans.json (raw Windows
+  # original in fancontrol-windows.json). Goes through CoolerControl's REST
+  # API, since its config.toml is root-owned and its profile format is the
+  # daemon's to write, not ours.
   if pacman -Qq coolercontrol >/dev/null 2>&1; then
-    say "CoolerControl fan curves: one CPU-temperature curve (0% at 50C up to"
-    say "  60% at 85C, 2C hysteresis) on the CPU and system fans, the pump fixed"
-    say "  at 50%, matching the old Windows FanControl setup. Needs coolercontrold"
-    say "  running; fans idle at 0 RPM below 50C, so check temps under load."
+    say "CoolerControl fan curves: CPU-temperature curve (10% floor up to 60%"
+    say "  at 85C, 2C hysteresis) on the CPU and two system fans, a RAM-temp"
+    say "  curve on another system fan (0% below 40C up to 100% at 100C), a"
+    say "  GPU-temp curve on another (0% below 60C up to 100% at 100C), and"
+    say "  the pump fixed at 50%. Needs coolercontrold running."
     if ! systemctl is-active --quiet coolercontrold.service; then
       say "coolercontrold is not running, skipping the fan curves (enable it above, then re-run)"
     elif confirm "Apply the fan curves to CoolerControl?"; then

@@ -1,14 +1,16 @@
 {
-  "note": "Fan setup for bin/coolercontrol-apply-fans, carried over from Windows FanControl (see fancontrol-windows.json). Names must match CoolerControl's own labels.",
+  "note": "Fan setup for bin/coolercontrol-apply-fans. CPU/Water Pump curves started as a carry-over from Windows FanControl (see fancontrol-windows.json); Ram and GPU were added later, tuned in the CoolerControl app. Names must match CoolerControl's own labels.",
   "device": "nct6687",
-  "function": {
-    "name": "Hysteresis 2C 1s",
-    "duty_minimum": 1,
-    "duty_maximum": 100,
-    "response_delay": 1,
-    "deviance": 2,
-    "only_downward": false
-  },
+  "functions": [
+    {
+      "name": "Hysteresis 2C 1s",
+      "duty_minimum": 1,
+      "duty_maximum": 100,
+      "response_delay": 1,
+      "deviance": 2,
+      "only_downward": false
+    }
+  ],
   "profiles": [
     {
       "name": "CPU Temp",
@@ -16,7 +18,28 @@
       "temp_device_type": "CPU",
       "temp_name": "temp1",
       "temp_label_suffix": "Tctl",
-      "curve": [[50, 0], [85, 60]]
+      "curve": [[20, 10], [85, 60]],
+      "function": "Hysteresis 2C 1s"
+    },
+    {
+      "name": "Ram",
+      "type": "Graph",
+      "temp_device_type": "Hwmon",
+      "temp_device_name": "spd5118",
+      "temp_device_type_index": 7,
+      "temp_name": "temp1",
+      "curve": [[0, 0], [40, 25], [45, 35], [55, 60], [100, 100]],
+      "function": null,
+      "note": "type_index 7 = the spd5118 (i2c-12-0051) that ran hottest when this was tuned. All four DIMM sensors report separately and drift a few C apart under load; re-check with `sensors | grep -A2 spd5118` if the hottest one changes."
+    },
+    {
+      "name": "GPU",
+      "type": "Graph",
+      "temp_device_type": "GPU",
+      "temp_device_name": "NVIDIA GeForce RTX 5070 Ti",
+      "temp_name": "GPU Temp Hotspot",
+      "curve": [[0, 0], [25, 0], [60.3, 0], [75, 75], [100, 100]],
+      "function": "Hysteresis 2C 1s"
     },
     {
       "name": "Water Pump",
@@ -26,8 +49,8 @@
   ],
   "channels": {
     "CPU Fan": "CPU Temp",
-    "System Fan #1": "CPU Temp",
-    "System Fan #2": "CPU Temp",
+    "System Fan #1": "GPU",
+    "System Fan #2": "Ram",
     "System Fan #4": "CPU Temp",
     "System Fan #5": "CPU Temp",
     "Pump Fan": "Water Pump"
