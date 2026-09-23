@@ -956,5 +956,45 @@ else
   say "skipped Obsidian vault sync"
 fi
 
+# 17. Dock instead of chronobar: nwg-dock-hyprland, bottom-right --------------- #
+# Not personal-only, but optional and a replacement, so it is asked separately
+# from step 3. Full-width mode is the only way to right-align the dock (the
+# margins are ignored otherwise), so its window spans the whole bottom edge but
+# is transparent: style.css gives only the icon buttons a background, joined
+# into one bar. The exclusive zone is left off on purpose, so windows keep the
+# full screen height and the dock floats over them instead. chronobar's
+# autostart line is commented out, not deleted, so switching back is one edit.
+# Re-running hypr-goldenspiral's installer (step 3) puts the chronobar line back.
+DOCK_ARGS='-f -a end -l top -i 96 -p bottom -nolauncher'
+DOCK_LINE="o.exec_on_start(\"nwg-dock-hyprland $DOCK_ARGS\")"
+CHRONOBAR_LINE='o.exec_on_start("qs -c chronobar")'
+say "Dock: replaces the chronobar taskbar with nwg-dock-hyprland, a tall bar"
+say "  of big icons in the bottom-right corner, with pinned apps (Chromium,"
+say "  foot, Files, Spotify, Discord, Obsidian, VS Code, Remmina; change them"
+say "  by right-clicking an app in the dock)."
+say "  - installs the nwg-dock-hyprland package"
+say "  - links its stylesheet into ~/.config/nwg-dock-hyprland/"
+say "  - starts it at login and comments out chronobar's autostart line"
+if confirm "Replace chronobar with the nwg-dock-hyprland dock?"; then
+  command -v nwg-dock-hyprland >/dev/null 2>&1 || omarchy pkg add nwg-dock-hyprland \
+    || warn "could not install nwg-dock-hyprland"
+  if command -v nwg-dock-hyprland >/dev/null 2>&1; then
+    link "$REPO/config/nwg-dock-hyprland/style.css" "$CONFIG_DIR/nwg-dock-hyprland/style.css"
+    # Copied, not linked: the dock rewrites this file whenever you pin an app.
+    if [ ! -e "$HOME/.cache/nwg-dock-pinned" ]; then
+      mkdir -p "$HOME/.cache"
+      cp "$REPO/config/nwg-dock-hyprland/pinned" "$HOME/.cache/nwg-dock-pinned"
+    fi
+    if grep -qF "$CHRONOBAR_LINE" "$HYPR_DIR/autostart.lua" 2>/dev/null; then
+      sed -i 's|^o.exec_on_start("qs -c chronobar")|-- &|' "$HYPR_DIR/autostart.lua"
+      say "commented out the chronobar autostart line in $HYPR_DIR/autostart.lua"
+    fi
+    require_line "$HYPR_DIR/autostart.lua" "$DOCK_LINE"
+    say "dock set up; it starts at next login (or run: nwg-dock-hyprland $DOCK_ARGS)"
+  fi
+else
+  say "skipped the nwg-dock-hyprland dock"
+fi
+
 echo
 say "done. Run: hyprctl reload && hyprctl configerrors"

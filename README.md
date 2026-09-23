@@ -68,6 +68,11 @@ boot menu that actually shows up and can chainload Windows.
 |                                       ~/.local/share/icons/        |
 |                                       (only offered if glances is  |
 |                                       on PATH)                     |
+|  nwg-dock-hyprland dock        ---->  package, stylesheet in       |
+|                                       ~/.config/nwg-dock-hyprland/,|
+|                                       pinned apps, autostart.lua   |
+|                                       (replaces chronobar's line,  |
+|                                       which is commented out)      |
 |  sudo-askpass                  ---->  ~/.local/bin/, plus          |
 |                                       ~/.config/environment.d/     |
 |                                       sudo-askpass.conf: sudo      |

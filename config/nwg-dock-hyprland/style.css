@@ -1,0 +1,49 @@
+window {
+  background: transparent;
+	border-radius: 10px;
+	border-style: none;
+	border-width: 1px;
+	border-color: rgba(156, 142, 122, 0.7)
+}
+
+#box {
+  /* Define attributes of the box surrounding icons here */
+  padding: 10px
+}
+
+#active {
+	/* This is to underline the button representing the currently active window */
+	border-bottom: solid 1px;
+	border-color: rgba(255, 255, 255, 0.3)
+}
+
+button, image {
+	background: none;
+	border-style: none;
+	box-shadow: none;
+	color: #999
+}
+
+button {
+	/* In full-width mode only the buttons hug the icons, so they carry the
+	   bar background, with no gaps, to read as one bar on the right. */
+	background: #36364f;
+	border-radius: 0;
+	padding: 14px 8px;
+	margin: 0;
+	color: #eee;
+  font-size: 12px
+}
+
+button:hover {
+	background-color: rgba(255, 255, 255, 0.15);
+	border-radius: 2px;
+}
+
+button:focus {
+	box-shadow: none
+}
+
+button:first-child {
+	border-radius: 20px 0 0 0
+}

@@ -562,5 +562,22 @@ else
   say "Obsidian vault sync not installed, nothing to do"
 fi
 
+if [ -L "$CONFIG_DIR/nwg-dock-hyprland/style.css" ] || grep -qF 'nwg-dock-hyprland' "$HYPR_DIR/autostart.lua" 2>/dev/null; then
+  if confirm "Remove the nwg-dock-hyprland dock (its autostart line and stylesheet link) and bring back chronobar's autostart line? Leaves the nwg-dock-hyprland package and your pinned apps."; then
+    grep -F 'nwg-dock-hyprland' "$HYPR_DIR/autostart.lua" 2>/dev/null | while IFS= read -r line; do
+      remove_line "$HYPR_DIR/autostart.lua" "$line"
+    done
+    unlink_ours "$REPO/config/nwg-dock-hyprland/style.css" "$CONFIG_DIR/nwg-dock-hyprland/style.css"
+    if grep -qF -- '-- o.exec_on_start("qs -c chronobar")' "$HYPR_DIR/autostart.lua" 2>/dev/null; then
+      sed -i 's|^-- \(o.exec_on_start("qs -c chronobar")\)|\1|' "$HYPR_DIR/autostart.lua"
+      say "restored the chronobar autostart line"
+    fi
+  else
+    say "left the dock in place"
+  fi
+else
+  say "nwg-dock-hyprland dock not installed, nothing to do"
+fi
+
 echo
 say "done. Run: hyprctl reload && hyprctl configerrors"
