@@ -62,6 +62,12 @@ boot menu that actually shows up and can chainload Windows.
 |                                       ~/.local/share/icons/        |
 |                                       (only offered if claude is   |
 |                                       on PATH)                     |
+|  Glances app launcher          ---->  ~/.local/share/            |
+|                                       applications/Glances.desktop |
+|                                       and an icon under            |
+|                                       ~/.local/share/icons/        |
+|                                       (only offered if glances is  |
+|                                       on PATH)                     |
 |  sudo-askpass                  ---->  ~/.local/bin/, plus          |
 |                                       ~/.config/environment.d/     |
 |                                       sudo-askpass.conf: sudo      |
@@ -117,6 +123,7 @@ hardware video decode for Chromium (only offered if an NVIDIA GPU is
 detected; on a machine that also has an AMD or Intel GPU it offers the
 hybrid GPU wrapper instead), Plymouth boot screen theming, the System menu's Reboot to
 Windows entry, the Claude app launcher (only offered if `claude` is on
+your PATH), the Glances app launcher (only offered if `glances` is on
 your PATH), the graphical sudo password prompt, remote desktop from Windows (only offered if Tailscale is
 installed), the Obsidian vault sync to Google Drive (needs a Google login
 you set up first, see below), and each personal-only piece), so you can decline anything

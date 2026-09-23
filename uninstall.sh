@@ -421,6 +421,18 @@ else
   say "Claude app launcher not installed, nothing to do"
 fi
 
+if [ -L "$HOME/.local/share/applications/Glances.desktop" ]; then
+  if confirm "Remove the Glances app launcher from the app launcher?"; then
+    unlink_ours "$REPO/config/applications/Glances.desktop" "$HOME/.local/share/applications/Glances.desktop"
+    unlink_ours "$REPO/config/icons/glances.png" "$HOME/.local/share/icons/hicolor/256x256/apps/glances.png"
+    gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" >/dev/null 2>&1 || true
+  else
+    say "left the Glances app launcher in place"
+  fi
+else
+  say "Glances app launcher not installed, nothing to do"
+fi
+
 if [ -L "$BIN_DIR/sudo-askpass" ] || [ -L "$CONFIG_DIR/environment.d/sudo-askpass.conf" ]; then
   if confirm "Remove the graphical sudo password prompt (sudo-askpass and its SUDO_ASKPASS setting; leaves the zenity package)?"; then
     unlink_ours "$REPO/bin/sudo-askpass" "$BIN_DIR/sudo-askpass"

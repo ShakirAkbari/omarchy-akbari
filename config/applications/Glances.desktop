@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Glances
+Comment=System monitor (CPU, RAM, disks, sensors) in a terminal
+Exec=xdg-terminal-exec --app-id=TUI.tile -e glances
+Terminal=false
+Type=Application
+Icon=glances
+Categories=System;Monitor;
+StartupNotify=true

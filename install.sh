@@ -538,7 +538,29 @@ else
   say "claude not found on PATH, skipping the Claude app launcher"
 fi
 
-# 13. Graphical sudo password prompt ------------------------------------------- #
+# 13. Glances app launcher ------------------------------------------------------ #
+# Not personal-only: it only launches whatever `glances` is on PATH, so it's
+# inert without the package installed, and this check just avoids asking in
+# that case. Same shape as the Claude entry above and Omarchy's own TUI
+# entries (Docker, Disk Usage): a .desktop file that opens the command in a
+# tiled terminal window, plus an icon.
+if command -v glances >/dev/null 2>&1; then
+  say "Glances app launcher: adds 'Glances' to the app launcher (SUPER+SPACE)"
+  say "  like your other apps. It opens the Glances system monitor in a"
+  say "  tiled terminal window, with the Glances icon."
+  if confirm "Add the Glances app launcher?"; then
+    link "$REPO/config/applications/Glances.desktop" "$HOME/.local/share/applications/Glances.desktop"
+    link "$REPO/config/icons/glances.png" "$HOME/.local/share/icons/hicolor/256x256/apps/glances.png"
+    gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" >/dev/null 2>&1 || true
+    say "added Glances to the app launcher"
+  else
+    say "skipped the Glances app launcher"
+  fi
+else
+  say "glances not found on PATH, skipping the Glances app launcher"
+fi
+
+# 14. Graphical sudo password prompt ------------------------------------------- #
 # Not personal-only: anything started without a terminal (a theme-set hook, a
 # menu entry, a keybinding) has nowhere to type a sudo password, so its sudo
 # call just fails. sudo already knows what to do about that: with no terminal
@@ -566,7 +588,7 @@ else
   say "skipped the graphical sudo password prompt"
 fi
 
-# 14. Personal-only: monitor layout, startup workspace, full package list --- #
+# 15. Personal-only: monitor layout, startup workspace, full package list --- #
 if [ "$PERSONAL" -eq 1 ]; then
   say "Personal monitor layout: hardcodes monitor positions, resolutions,"
   say "  and workspace assignments for the author's own multi-monitor setup"
@@ -778,7 +800,7 @@ if [ "$PERSONAL" -eq 1 ]; then
   fi
 fi
 
-# 15. Remote desktop from Windows, over Tailscale only ------------------------- #
+# 16. Remote desktop from Windows, over Tailscale only ------------------------- #
 # Not personal-only, but after the personal block so a -p run has already set
 # up Tailscale (which this needs) by now. Two independent options, asked
 # separately, because no single server does both jobs on Hyprland: RDP servers

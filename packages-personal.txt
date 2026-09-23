@@ -37,6 +37,7 @@ nct6687d-dkms-git
 xpadneo-dkms
 headsetcontrol
 coolercontrol
+glances
 
 # Apps
 kitty
