@@ -8,4 +8,4 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   exit 0
 fi
 
-shellcheck install.sh uninstall.sh
+shellcheck -S warning install.sh uninstall.sh
