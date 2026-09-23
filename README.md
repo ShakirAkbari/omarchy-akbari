@@ -101,7 +101,7 @@ boot menu that actually shows up and can chainload Windows.
 |                                       bar layout (right section)  |
 |    packages-personal.txt      ---->  omarchy pkg add             |
 |    webapps-personal.txt       ---->  omarchy-webapp-install       |
-|                                       (Word, Excel, Teams in the  |
+|                                       (Word, Excel, Teams, Gmail  |
 |                                       app launcher)               |
 |    coolercontrol/fans.json    ---->  CoolerControl fan curves,    |
 |                                       applied via its REST API    |
