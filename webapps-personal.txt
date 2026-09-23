@@ -5,3 +5,4 @@
 Word|https://word.cloud.microsoft/|config/icons/webapps/word.png
 Excel|https://excel.cloud.microsoft/|config/icons/webapps/excel.png
 Teams|https://teams.cloud.microsoft/|config/icons/webapps/teams.png
+Gmail|https://mail.google.com/|config/icons/webapps/gmail.png
