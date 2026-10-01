@@ -29,9 +29,10 @@ keys, hypr-goldenspiral, the numlock-on-boot setup older versions installed
 xwayland-primary-monitor, Plymouth boot screen theming (and its theme-set
 hook), the System menu's Reboot to Windows entry, the Claude app
 launcher, the graphical sudo password prompt, the Chromium hybrid GPU
-wrapper, and (if present) the personal-only monitor layout, Chromium flags,
-CoolerControl fan curves, web apps, and package list. Also the xrdp and wayvnc remote desktop setups
-and the Obsidian vault sync (never your vaults or your Google Drive folder).
+wrapper, the VM disk guard, and (if present) the personal-only monitor layout,
+Chromium flags, CoolerControl fan curves, web apps, and package list. Also the
+xrdp and wayvnc remote desktop setups and the Obsidian vault sync (never your
+vaults or your Google Drive folder).
 
   -h, --help   Show this help.
 EOF
@@ -480,6 +481,33 @@ if [ -f "$REPO/packages-personal.txt" ] && command -v omarchy >/dev/null 2>&1; t
   else
     say "left the personal package list installed"
   fi
+fi
+
+# VM disk guard ---------------------------------------------------------------- #
+GUARD_LIST=/etc/omarchy-akbari/vm-guarded-disks
+if [ -L /etc/libvirt/hooks/qemu ] && [ "$(readlink -f /etc/libvirt/hooks/qemu)" = "$(readlink -f "$REPO/bin/omarchy-vm-disk-guard-hook")" ]; then
+  if confirm "Remove the VM disk guard (libvirt hook, udev rule, and the guarded-disk list; needs sudo)?"; then
+    sudo rm -f /etc/libvirt/hooks/qemu
+    say "removed /etc/libvirt/hooks/qemu"
+    if [ -L /etc/udev/rules.d/99-omarchy-vm-disk-guard.rules ]; then
+      sudo rm -f /etc/udev/rules.d/99-omarchy-vm-disk-guard.rules
+      sudo udevadm control --reload-rules
+      say "removed the udev rule and reloaded udev"
+    fi
+    if [ -L /usr/local/bin/omarchy-vm-guard-udev-check ]; then
+      sudo rm -f /usr/local/bin/omarchy-vm-guard-udev-check
+      say "removed /usr/local/bin/omarchy-vm-guard-udev-check"
+    fi
+    if sudo test -f "$GUARD_LIST"; then
+      sudo rm -f "$GUARD_LIST"
+      say "removed $GUARD_LIST"
+    fi
+    sudo rm -f /run/omarchy-akbari-vm-lock.* 2>/dev/null || true
+  else
+    say "left the VM disk guard in place"
+  fi
+else
+  say "VM disk guard not installed, nothing to do"
 fi
 
 # Remote desktop (xrdp, wayvnc) ------------------------------------------------ #

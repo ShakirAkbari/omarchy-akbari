@@ -1,0 +1,92 @@
+#!/bin/bash
+# Installed by omarchy-akbari as the libvirt qemu hook (symlinked to
+# /etc/libvirt/hooks/qemu). Runs as root for every QEMU domain's lifecycle
+# event; libvirt calls it with the domain name as $1 and the operation name
+# ("prepare", "release", etc.) as $2, sub-operation ("begin"/"end") as $3.
+#
+# Guards against the host mounting a whole-disk VM passthrough device while a
+# VM using it is running: a <disk type='block'> pointed at a physical device
+# gives libvirt no exclusive lock on it, so nothing otherwise stops the host
+# from also mounting a partition on it at the same time a VM is writing to
+# it, which can corrupt a filesystem two writers touch at once.
+#
+# Only acts on a domain whose <disk type='block'> source matches a line in
+# GUARD_LIST (one whole-disk device path per line, e.g. /dev/nvme1n1),
+# written by install.sh's "VM disk guard" step. Every other domain, and
+# every domain with no guarded disk, passes through untouched.
+#
+# Before start (prepare/begin): unmounts every partition of a guarded disk
+# this domain uses, and refuses to let the domain start (exit 1, which
+# libvirt treats as a hook failure and aborts the start) if any of them
+# can't be unmounted -- better a VM that won't start than two writers on the
+# same filesystem.
+#
+# After stop (release/end): drops the guard, unless another still-running
+# domain also uses the same disk.
+#
+# The "keep the host from mounting it while guarded" half is a separate udev
+# rule (config/udev/99-omarchy-vm-disk-guard.rules) plus
+# bin/omarchy-vm-guard-udev-check; this script only maintains the lock files
+# under /run that rule reads, and nudges udev to re-evaluate them via
+# `udevadm trigger`. A deliberate `sudo mount` bypasses udisks2 entirely and
+# still works -- this stops the accidental path (a file manager, the Disks
+# app, `udisksctl mount`), not a deliberate root bypass.
+set -euo pipefail
+
+VM="$1"
+OP="${2:-}"
+SUB="${3:-}"
+
+GUARD_LIST=/etc/omarchy-akbari/vm-guarded-disks
+[ -r "$GUARD_LIST" ] || exit 0
+
+# One guarded disk device path per line that $1's own <disk type='block'>
+# sources include.
+guarded_disks_for() {
+  comm -12 \
+    <(virsh dumpxml "$1" 2>/dev/null | grep -oP "(?<=<source dev=')[^']+" | sort -u) \
+    <(sort -u "$GUARD_LIST")
+}
+
+lock() {
+  touch "/run/omarchy-akbari-vm-lock.$(basename "$1")"
+  udevadm trigger --name-match="$1" >/dev/null 2>&1 || true
+}
+
+unlock_if_unused() {
+  local disk="$1" dom
+  while read -r dom; do
+    [ "$dom" = "$VM" ] && continue
+    guarded_disks_for "$dom" | grep -qxF "$disk" && return 0
+  done < <(virsh list --name --state-running 2>/dev/null)
+  rm -f "/run/omarchy-akbari-vm-lock.$(basename "$disk")"
+  udevadm trigger --name-match="$disk" >/dev/null 2>&1 || true
+}
+
+case "$OP" in
+  prepare)
+    [ "$SUB" = "begin" ] || exit 0
+    while read -r disk; do
+      [ -n "$disk" ] || continue
+      for part in "$disk"*; do
+        [ -b "$part" ] || continue
+        mp="$(findmnt -n -o TARGET "$part" 2>/dev/null || true)"
+        [ -n "$mp" ] || continue
+        if ! umount "$part" 2>/dev/null; then
+          echo "omarchy-akbari: $part is mounted at $mp and would not unmount; refusing to start $VM" >&2
+          exit 1
+        fi
+        echo "omarchy-akbari: unmounted $part (was at $mp) before starting $VM" >&2
+      done
+      lock "$disk"
+    done < <(guarded_disks_for "$VM")
+    ;;
+  release)
+    [ "$SUB" = "end" ] || exit 0
+    while read -r disk; do
+      [ -n "$disk" ] || continue
+      unlock_if_unused "$disk"
+    done < <(guarded_disks_for "$VM")
+    ;;
+esac
+exit 0

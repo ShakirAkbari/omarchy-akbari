@@ -800,7 +800,125 @@ if [ "$PERSONAL" -eq 1 ]; then
   fi
 fi
 
-# 16. Remote desktop from Windows, over Tailscale only ------------------------- #
+# 16. VM disk guard: protect a whole-disk VM passthrough from the host ------ #
+# Not personal-only: gated on libvirt (virsh) being installed, not -p, same
+# as the Claude/Glances launchers above.
+#
+# A VM with a <disk type='block'> pointed straight at a physical disk (virt-
+# manager calls this attaching the drive itself, not a .qcow2 image file --
+# the way to run an existing bare-metal Windows install inside a VM, for
+# example) gets no exclusive lock on that device from libvirt. Nothing then
+# stops the host from also mounting a partition on it while the VM runs, and
+# two writers on the same filesystem at once (NTFS, ext4, whatever) can
+# corrupt it. See bin/omarchy-vm-disk-guard-hook for how the guard works.
+if command -v virsh >/dev/null 2>&1; then
+  GUARD_LIST=/etc/omarchy-akbari/vm-guarded-disks
+
+  # Root/boot disk(s): walk from "/" and "/boot" down through any device-
+  # mapper/LUKS layers to the underlying physical disk, so the machine's own
+  # system disk never shows up as a candidate -- guarding it would try to
+  # unmount "/" before every VM start and only ever fail.
+  root_physical_disks() {
+    local mnt dev base
+    for mnt in / /boot; do
+      dev="$(findmnt -n -o SOURCE "$mnt" 2>/dev/null)" || continue
+      dev="$(readlink -f "$dev" 2>/dev/null)" || continue
+      while :; do
+        # -d (no-deps): without it, lsblk given a whole disk recurses into
+        # its partitions too, so a disk with more than one partition would
+        # print one PKNAME line per partition instead of the disk's own
+        # (empty) one, breaking the "reached a physical disk" check below.
+        base="$(lsblk -dno PKNAME "$dev" 2>/dev/null)"
+        [ -n "$base" ] || break
+        dev="/dev/$base"
+      done
+      basename "$dev"
+    done
+  }
+  mapfile -t root_disks < <(root_physical_disks | sort -u)
+  is_root_disk() {
+    local d="$1" r
+    for r in "${root_disks[@]}"; do [ "$d" = "$r" ] && return 0; done
+    return 1
+  }
+
+  candidates=()
+  while IFS= read -r line; do
+    eval "$line"
+    [ "${TYPE:-}" = "disk" ] || continue
+    # A real disk has a /sys/block/<name>/device symlink to its controller;
+    # zram, loop, and device-mapper nodes report TYPE=disk too but have none,
+    # and are never something you'd attach whole to a VM.
+    [ -e "/sys/block/$NAME/device" ] || continue
+    is_root_disk "$NAME" && continue
+    candidates+=("$NAME|$SIZE|${MODEL:-}")
+  done < <(lsblk -d -P -o NAME,SIZE,MODEL,TYPE)
+
+  if [ "${#candidates[@]}" -eq 0 ]; then
+    say "VM disk guard: no non-system disks found to offer, skipping"
+  else
+    say "VM disk guard: for any drive you attach whole to a VM (virt-manager's"
+    say "  'physical disk' passthrough -- not a .qcow2 image file, which this"
+    say "  doesn't apply to), guards against accidentally mounting it on this"
+    say "  host while a VM using it is running; simultaneous host + VM writes"
+    say "  to the same filesystem can corrupt it."
+    say "  For each drive you pick below: unmounts it before any VM listing it"
+    say "  as a disk starts (refusing to start that VM if something won't"
+    say "  unmount), and hides it from file-manager/Disks-app mounting for as"
+    say "  long as that VM keeps running. A deliberate 'sudo mount' still"
+    say "  works -- this stops the accidental path, not a deliberate bypass."
+    say "  Re-run this step any time to add more drives; already-guarded ones"
+    say "  are kept, not re-asked about."
+    i=1
+    for c in "${candidates[@]}"; do
+      IFS='|' read -r name size model <<< "$c"
+      mark=""
+      if sudo test -f "$GUARD_LIST" 2>/dev/null && sudo grep -qxF "/dev/$name" "$GUARD_LIST" 2>/dev/null; then
+        mark=" (already guarded)"
+      fi
+      printf '  %d) /dev/%s  %s  %s%s\n' "$i" "$name" "$size" "${model:-(no model reported)}" "$mark"
+      i=$((i + 1))
+    done
+    choice=""
+    if [ -t 0 ] || [ -e /dev/tty ]; then
+      read -r -p "Which drives might be used whole in a VM? [space-separated numbers, blank for none] " choice < /dev/tty
+    fi
+    guarded=()
+    for n in $choice; do
+      { [ "$n" -ge 1 ] && [ "$n" -le "${#candidates[@]}" ]; } 2>/dev/null || continue
+      IFS='|' read -r name _ _ <<< "${candidates[$((n - 1))]}"
+      guarded+=("/dev/$name")
+    done
+
+    if [ "${#guarded[@]}" -eq 0 ]; then
+      say "no drives selected, skipping the VM disk guard"
+    else
+      sudo mkdir -p "$(dirname "$GUARD_LIST")"
+      for d in "${guarded[@]}"; do
+        sudo grep -qxF "$d" "$GUARD_LIST" 2>/dev/null || printf '%s\n' "$d" | sudo tee -a "$GUARD_LIST" > /dev/null
+      done
+      say "guarding: ${guarded[*]}"
+
+      chmod +x "$REPO/bin/omarchy-vm-disk-guard-hook" "$REPO/bin/omarchy-vm-guard-udev-check"
+      sudo mkdir -p /etc/libvirt/hooks
+      if sudo test -e /etc/libvirt/hooks/qemu && ! sudo grep -qF 'omarchy-akbari' /etc/libvirt/hooks/qemu 2>/dev/null; then
+        warn "/etc/libvirt/hooks/qemu already exists and wasn't installed by omarchy-akbari, leaving it alone"
+        warn "  wire $REPO/bin/omarchy-vm-disk-guard-hook into it yourself, or back it up, remove it, and re-run"
+      else
+        sudo ln -sfn "$REPO/bin/omarchy-vm-disk-guard-hook" /etc/libvirt/hooks/qemu
+        say "linked /etc/libvirt/hooks/qemu -> $REPO/bin/omarchy-vm-disk-guard-hook"
+      fi
+      sudo ln -sfn "$REPO/bin/omarchy-vm-guard-udev-check" /usr/local/bin/omarchy-vm-guard-udev-check
+      sudo ln -sfn "$REPO/config/udev/99-omarchy-vm-disk-guard.rules" /etc/udev/rules.d/99-omarchy-vm-disk-guard.rules
+      sudo udevadm control --reload-rules
+      say "installed the udev rule and reloaded udev"
+    fi
+  fi
+else
+  say "libvirt (virsh) not found, skipping the VM disk guard"
+fi
+
+# 17. Remote desktop from Windows, over Tailscale only ------------------------- #
 # Not personal-only, but after the personal block so a -p run has already set
 # up Tailscale (which this needs) by now. Two independent options, asked
 # separately, because no single server does both jobs on Hyprland: RDP servers

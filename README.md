@@ -124,20 +124,23 @@ detected; on a machine that also has an AMD or Intel GPU it offers the
 hybrid GPU wrapper instead), Plymouth boot screen theming, the System menu's Reboot to
 Windows entry, the Claude app launcher (only offered if `claude` is on
 your PATH), the Glances app launcher (only offered if `glances` is on
-your PATH), the graphical sudo password prompt, remote desktop from Windows (only offered if Tailscale is
+your PATH), the graphical sudo password prompt, the VM disk guard (only
+offered if libvirt is installed), remote desktop from Windows (only offered if Tailscale is
 installed), the Obsidian vault sync to Google Drive (needs a Google login
 you set up first, see below), and each personal-only piece), so you can decline anything
 you don't want on a given run. Piped in with no terminal attached
 (`curl ... | bash`), every question defaults to no.
 
-One step is a numbered choice instead of yes/no: if efibootmgr reports more
-than one Windows Boot Manager entry (a stale leftover from a previous
+Two steps are a numbered choice instead of yes/no. One: if efibootmgr reports
+more than one Windows Boot Manager entry (a stale leftover from a previous
 install, or a since-removed drive, is common), it asks which one is your
 real Windows install and remembers the answer. The Limine dual-boot entry
 and the System menu's Reboot to Windows entry both depend on this
 resolving to exactly one entry, so on a machine with more than one and no
 answer given (or none to begin with), those two steps have nothing to
-offer that run rather than guessing.
+offer that run rather than guessing. The other: the VM disk guard step lets
+you pick more than one drive at once (space-separated numbers), since a
+machine can have more than one disk you'd ever attach whole to a VM.
 
 Re-running is safe and does not create duplicates: existing files it would
 overwrite get backed up next to themselves as `<file>.bak.<timestamp>`
@@ -211,6 +214,40 @@ under load). Skip it everywhere else.
 ```sh
 ./install.sh --personal
 ```
+
+## VM disk guard
+
+If you ever attach a real physical disk to a VM in virt-manager (a `<disk
+type='block'>` pointed at `/dev/...`, not a `.qcow2` image file -- the way to
+run an existing bare-metal Windows install inside a VM instead of a fresh
+install, for example), libvirt gives that VM no exclusive lock on the
+device. Nothing then stops the host from also mounting a partition on it
+while the VM is running, and two writers on the same filesystem at once can
+corrupt it.
+
+install.sh's VM disk guard step (only offered if libvirt/`virsh` is
+installed) lists every physical disk on the machine except the one your
+system is actually running from, and lets you pick which ones might ever be
+attached whole to a VM. For each one you pick:
+
+- **Before any VM that lists it as a disk starts**, it unmounts every
+  partition on it, and refuses to let that VM start at all if something
+  won't unmount (a libvirt hook, `bin/omarchy-vm-disk-guard-hook`, symlinked
+  to `/etc/libvirt/hooks/qemu`).
+- **For as long as that VM keeps running**, it's hidden from file-manager
+  auto-mount, the Disks app, and `udisksctl mount` (a udev rule,
+  `config/udev/99-omarchy-vm-disk-guard.rules`, plus
+  `bin/omarchy-vm-guard-udev-check`).
+
+A deliberate `sudo mount /dev/whatever` still works -- udisks2 is the
+accidental path (double-clicking the drive in a file manager, GUI
+auto-mount) this closes, not a deliberate root bypass. There's no way to make
+a raw block device truly unmountable to root without something heavier than
+libvirt currently does on its own.
+
+The list of guarded disks lives in `/etc/omarchy-akbari/vm-guarded-disks`,
+one `/dev/...` path per line. Re-run install.sh any time to add more drives;
+already-guarded ones are kept, not re-asked about.
 
 ## Remote desktop from Windows
 

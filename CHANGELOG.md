@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- `install.sh` / `uninstall.sh`: VM disk guard (step 16; remote desktop is
+  now 17). A `<disk type='block'>` VM passthrough (attaching a physical disk
+  whole, not a `.qcow2` file -- e.g. running a bare-metal Windows install
+  inside a VM) gets no exclusive lock from libvirt, so nothing stopped the
+  host from also mounting a partition on it while the VM ran, risking
+  corruption from two simultaneous writers.
+  - New `bin/omarchy-vm-disk-guard-hook`: a libvirt qemu hook (symlinked to
+    `/etc/libvirt/hooks/qemu`) that unmounts a guarded disk's partitions
+    before any VM using it starts (refusing to start that VM if something
+    won't unmount), and drops the guard once no running VM uses it anymore.
+  - New `bin/omarchy-vm-guard-udev-check` +
+    `config/udev/99-omarchy-vm-disk-guard.rules`: hides a guarded disk from
+    udisks2 (file-manager auto-mount, the Disks app, `udisksctl mount`) for
+    as long as a VM using it runs. A deliberate `sudo mount` still works --
+    this closes the accidental path, not a deliberate bypass.
+  - install.sh lists every physical disk except the one the system is
+    running from and lets you pick more than one at once; the list is saved
+    to `/etc/omarchy-akbari/vm-guarded-disks`. Not personal-only: gated on
+    libvirt being installed. Re-running adds more drives without re-asking
+    about already-guarded ones.
 - `install.sh` / `uninstall.sh`: graphical sudo password prompt (step 13;
   the personal and remote desktop steps are now 14 and 15). Anything started
   without a terminal (a `theme-set` hook, a menu entry, a keybinding) had

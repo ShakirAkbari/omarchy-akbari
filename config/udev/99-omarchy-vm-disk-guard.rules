@@ -1,0 +1,13 @@
+# Installed by omarchy-akbari. Hides a whole-disk VM passthrough device (and
+# its partitions) from udisks2 -- file managers, the Disks app, `udisksctl
+# mount` -- for as long as a VM using it is running, so it doesn't get
+# mounted on the host at the same time a VM is writing to it.
+#
+# bin/omarchy-vm-disk-guard-hook (the libvirt qemu hook) creates/removes
+# /run/omarchy-akbari-vm-lock.<disk> around a guarded VM's run and triggers a
+# re-evaluation of this rule on the affected device; bin/omarchy-vm-guard-
+# udev-check resolves a partition back to its whole disk's lock file.
+#
+# A deliberate `sudo mount` bypasses udisks2 entirely and still works -- this
+# stops the accidental path, not a deliberate root bypass.
+SUBSYSTEM=="block", PROGRAM="/usr/local/bin/omarchy-vm-guard-udev-check %k", ENV{UDISKS_IGNORE}="1"

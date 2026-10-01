@@ -1,0 +1,23 @@
+#!/bin/bash
+# Installed by omarchy-akbari, run as root by
+# config/udev/99-omarchy-vm-disk-guard.rules for every block device add/
+# change event. Prints nothing; exit 0 means "this device is locked by a
+# running VM, hide it from udisks2" (the rule sets ENV{UDISKS_IGNORE}=1 on a
+# match), exit 1 means "not locked, leave it alone".
+#
+# Takes the kernel device name (udev's %k, e.g. nvme1n1 or nvme1n1p1) as $1.
+# A partition's lock lives under its whole disk's name
+# (/run/omarchy-akbari-vm-lock.<whole-disk>, written by
+# bin/omarchy-vm-disk-guard-hook), so this resolves $1 up to its parent disk
+# via lsblk's PKNAME column first; a whole disk itself has no PKNAME, so it
+# falls back to its own name.
+set -euo pipefail
+
+kname="$1"
+# -d (no-deps): without it, lsblk given a whole disk recurses into its
+# partitions too, so a disk with partitions would print one PKNAME line per
+# partition instead of the disk's own (empty) one.
+base="$(lsblk -dno PKNAME "/dev/$kname" 2>/dev/null || true)"
+[ -n "$base" ] || base="$kname"
+
+[ -e "/run/omarchy-akbari-vm-lock.$base" ]
