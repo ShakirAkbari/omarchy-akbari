@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `install.sh` / `uninstall.sh` (step 15, personal-only): `shakir.weather`
+  bar widget, a fork of Omarchy's built-in weather widget that shows the
+  current temperature next to the condition icon instead of the icon alone.
+  Swapped in for `omarchy.weather` in `shell.json`'s bar layout, same as
+  `shakir.workspaces`.
 - `install.sh` / `uninstall.sh`: VM disk guard (step 16; remote desktop is
   now 17). A `<disk type='block'>` VM passthrough (attaching a physical disk
   whole, not a `.qcow2` file -- e.g. running a bare-metal Windows install

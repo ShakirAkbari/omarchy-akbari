@@ -276,6 +276,30 @@ else
   say "shakir.workspaces bar widget not installed, nothing to do"
 fi
 
+WEATHER_PLUGIN_DIR="$CONFIG_DIR/omarchy/plugins/shakir.weather"
+if [ -L "$WEATHER_PLUGIN_DIR/BarWidget.qml" ]; then
+  if confirm "Remove the shakir.weather bar widget and swap it back to omarchy.weather?"; then
+    unlink_ours "$REPO/config/omarchy/plugins/shakir.weather/manifest.json" "$WEATHER_PLUGIN_DIR/manifest.json"
+    unlink_ours "$REPO/config/omarchy/plugins/shakir.weather/BarWidget.qml" "$WEATHER_PLUGIN_DIR/BarWidget.qml"
+    unlink_ours "$REPO/config/omarchy/plugins/shakir.weather/Panel.qml" "$WEATHER_PLUGIN_DIR/Panel.qml"
+    unlink_ours "$REPO/config/omarchy/plugins/shakir.weather/Model.js" "$WEATHER_PLUGIN_DIR/Model.js"
+    rmdir "$WEATHER_PLUGIN_DIR" 2>/dev/null || true
+    SHELL_JSON="$CONFIG_DIR/omarchy/shell.json"
+    if [ -f "$SHELL_JSON" ] && command -v jq >/dev/null 2>&1; then
+      SHELL_JSON_TMP=$(mktemp)
+      jq '(.bar.layout.left, .bar.layout.center, .bar.layout.right) |= map(if .id == "shakir.weather" then .id = "omarchy.weather" else . end)' "$SHELL_JSON" > "$SHELL_JSON_TMP"
+      mv "$SHELL_JSON_TMP" "$SHELL_JSON"
+      say "swapped shakir.weather -> omarchy.weather in $SHELL_JSON"
+    else
+      warn "no $SHELL_JSON or jq not found; swap shakir.weather back to omarchy.weather yourself"
+    fi
+  else
+    say "left the shakir.weather bar widget in place"
+  fi
+else
+  say "shakir.weather bar widget not installed, nothing to do"
+fi
+
 SPOTIFY_PLUGIN_DIR="$CONFIG_DIR/omarchy/plugins/shakir.spotify"
 if [ -L "$SPOTIFY_PLUGIN_DIR/SpotifyWidget.qml" ]; then
   if confirm "Remove the shakir.spotify bar widget?"; then

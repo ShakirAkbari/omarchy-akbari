@@ -96,6 +96,10 @@ boot menu that actually shows up and can chainload Windows.
 |                                       swapped in for              |
 |                                       omarchy.workspaces in       |
 |                                       shell.json's bar layout     |
+|    shakir.weather plugin      ---->  ~/.config/omarchy/plugins/, |
+|                                       swapped in for              |
+|                                       omarchy.weather in          |
+|                                       shell.json's bar layout     |
 |    shakir.spotify plugin      ---->  ~/.config/omarchy/plugins/, |
 |                                       added to shell.json's        |
 |                                       bar layout (right section)  |

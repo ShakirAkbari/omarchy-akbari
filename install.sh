@@ -665,6 +665,38 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped shakir.workspaces bar widget"
   fi
 
+  # shakir.weather: a clone of Omarchy's built-in weather bar widget that
+  # shows the current temperature next to the condition icon instead of the
+  # icon alone. Swaps it in for omarchy.weather in shell.json's bar layout.
+  say "shakir.weather bar widget: a fork of Omarchy's built-in weather"
+  say "  widget that shows the current temperature next to the condition"
+  say "  icon instead of the icon alone. Swaps it in for omarchy.weather"
+  say "  in $CONFIG_DIR/omarchy/shell.json's bar layout."
+  if confirm "Install the shakir.weather bar widget?"; then
+    plugin_dir="$CONFIG_DIR/omarchy/plugins/shakir.weather"
+    mkdir -p "$plugin_dir"
+    link "$REPO/config/omarchy/plugins/shakir.weather/manifest.json" "$plugin_dir/manifest.json"
+    link "$REPO/config/omarchy/plugins/shakir.weather/BarWidget.qml" "$plugin_dir/BarWidget.qml"
+    link "$REPO/config/omarchy/plugins/shakir.weather/Panel.qml" "$plugin_dir/Panel.qml"
+    link "$REPO/config/omarchy/plugins/shakir.weather/Model.js" "$plugin_dir/Model.js"
+
+    shell_json="$CONFIG_DIR/omarchy/shell.json"
+    if [ ! -f "$shell_json" ] || ! command -v jq >/dev/null 2>&1; then
+      warn "no $shell_json or jq not found; add {\"id\": \"shakir.weather\"} to its bar layout yourself"
+    elif jq -e '[.bar.layout.left[]?, .bar.layout.center[]?, .bar.layout.right[]?] | any(.id == "shakir.weather")' "$shell_json" >/dev/null 2>&1; then
+      say "shakir.weather already wired into $shell_json"
+    elif jq -e '[.bar.layout.left[]?, .bar.layout.center[]?, .bar.layout.right[]?] | any(.id == "omarchy.weather")' "$shell_json" >/dev/null 2>&1; then
+      shell_json_tmp=$(mktemp)
+      jq '(.bar.layout.left, .bar.layout.center, .bar.layout.right) |= map(if .id == "omarchy.weather" then .id = "shakir.weather" else . end)' "$shell_json" > "$shell_json_tmp"
+      mv "$shell_json_tmp" "$shell_json"
+      say "swapped omarchy.weather -> shakir.weather in $shell_json"
+    else
+      warn "no omarchy.weather entry found in $shell_json's bar layout; add {\"id\": \"shakir.weather\"} yourself"
+    fi
+  else
+    say "skipped shakir.weather bar widget"
+  fi
+
   # shakir.spotify: Spotify now-playing + play/pause/skip in the bar, between
   # the center section (clock/weather) and the right-side icon cluster.
   # Reads Quickshell's Mpris module directly rather than Omarchy's own
