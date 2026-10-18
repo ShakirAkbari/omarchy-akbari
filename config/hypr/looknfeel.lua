@@ -13,6 +13,17 @@
 hl.curve("offStage", { type = "bezier", points = { { 0.2, 1.3 }, { 0.4, 1 } } })
 hl.animation({ leaf = "windowsMove", enabled = true, speed = 4.5, bezier = "offStage" })
 
+-- Omarchy's default (misc.on_focus_under_fullscreen = 1) just shifts keyboard
+-- focus to a newly opened window without unfullscreening whatever's on top,
+-- so new apps spawn focused but visually stuck behind a fullscreened window.
+-- 2 unfullscreens the old window whenever focus moves elsewhere, so new
+-- windows actually appear in front.
+hl.config({
+  misc = {
+    on_focus_under_fullscreen = 2,
+  },
+})
+
 -- Global blur, off in Omarchy defaults. Turned on for the Aero-glass app dock
 -- (hypr/autostart.lua adds the per-layer blur rule). Omarchy's windows are
 -- opaque, so this only shows where something is actually translucent.

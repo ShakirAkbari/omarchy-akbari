@@ -45,3 +45,6 @@ hl.unbind("XF86AudioPlay")
 o.bind("XF86AudioPlay", "Spotify: launch / play", "spotify-play-key", { locked = true })
 -- Media stop button: 1 press stops playback, 2 quick presses quit Spotify.
 o.bind("XF86AudioStop", "Spotify: stop / (2x) quit", "spotify-stop-key", { locked = true })
+
+-- Voice dictation (voxtype): press to start, press again to stop + type.
+o.bind("SUPER + D", "Dictate (voice to text)", "voxtype record toggle")
