@@ -103,6 +103,14 @@ boot menu that actually shows up and can chainload Windows.
 |    shakir.spotify plugin      ---->  ~/.config/omarchy/plugins/, |
 |                                       added to shell.json's        |
 |                                       bar layout (right section)  |
+|    shakir.indicators plugin   ---->  ~/Projects/, its own        |
+|                                       install.sh (a separate       |
+|                                       repo, since it's useful to  |
+|                                       any voxtype user, not       |
+|                                       personal/machine-specific), |
+|                                       swapped in for              |
+|                                       omarchy.indicators in       |
+|                                       shell.json's bar layout     |
 |    packages-personal.txt      ---->  omarchy pkg add             |
 |    webapps-personal.txt       ---->  omarchy-webapp-install       |
 |                                       (Word, Excel, Teams in the  |

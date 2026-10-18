@@ -336,6 +336,49 @@ else
   say "shakir.spotify bar widget not installed, nothing to do"
 fi
 
+INDICATORS_DIR="$PROJECTS_DIR/omarchy-akbari-waveform-dictation-indicator"
+INDICATORS_PLUGIN_DIR="$CONFIG_DIR/omarchy/plugins/shakir.indicators"
+if [ -L "$INDICATORS_PLUGIN_DIR/Indicators.qml" ]; then
+  if confirm "Remove the shakir.indicators bar widget and swap it back to omarchy.indicators?"; then
+    unlink_ours "$INDICATORS_DIR/config/omarchy/plugins/shakir.indicators/manifest.json" "$INDICATORS_PLUGIN_DIR/manifest.json"
+    unlink_ours "$INDICATORS_DIR/config/omarchy/plugins/shakir.indicators/Indicators.qml" "$INDICATORS_PLUGIN_DIR/Indicators.qml"
+    for f in Dictation Dnd NightLight Reminder ScreenRecording StayAwake; do
+      unlink_ours "$INDICATORS_DIR/config/omarchy/plugins/shakir.indicators/indicators/$f.qml" "$INDICATORS_PLUGIN_DIR/indicators/$f.qml"
+    done
+    rmdir "$INDICATORS_PLUGIN_DIR/indicators" 2>/dev/null || true
+    rmdir "$INDICATORS_PLUGIN_DIR" 2>/dev/null || true
+    if [ -L "$BIN_DIR/omarchy-voxtype-waveform" ]; then
+      unlink_ours "$INDICATORS_DIR/bin/omarchy-voxtype-waveform" "$BIN_DIR/omarchy-voxtype-waveform"
+    fi
+    SHELL_JSON="$CONFIG_DIR/omarchy/shell.json"
+    if [ -f "$SHELL_JSON" ] && command -v jq >/dev/null 2>&1; then
+      SHELL_JSON_TMP=$(mktemp)
+      jq '(.bar.layout.left, .bar.layout.center, .bar.layout.right) |= map(if .id == "shakir.indicators" then .id = "omarchy.indicators" else . end)' "$SHELL_JSON" > "$SHELL_JSON_TMP"
+      mv "$SHELL_JSON_TMP" "$SHELL_JSON"
+      say "swapped shakir.indicators -> omarchy.indicators in $SHELL_JSON"
+    else
+      warn "no $SHELL_JSON or jq not found; swap shakir.indicators back to omarchy.indicators yourself"
+    fi
+  else
+    say "left the shakir.indicators bar widget in place"
+  fi
+else
+  say "shakir.indicators bar widget not installed, nothing to do"
+fi
+
+if [ -d "$INDICATORS_DIR" ]; then
+  if [ -d "$INDICATORS_DIR/.git" ] && [ -n "$(git -C "$INDICATORS_DIR" status --porcelain 2>/dev/null)" ]; then
+    warn "$INDICATORS_DIR has uncommitted changes, leaving it in place (remove it yourself if you're sure)"
+  elif confirm "Delete the cloned omarchy-akbari-waveform-dictation-indicator directory at $INDICATORS_DIR entirely?"; then
+    rm -rf "$INDICATORS_DIR"
+    say "removed $INDICATORS_DIR"
+  else
+    say "left $INDICATORS_DIR in place"
+  fi
+else
+  say "omarchy-akbari-waveform-dictation-indicator directory not present, nothing to do"
+fi
+
 if [ -L "$CONFIG_DIR/chromium-flags.conf" ]; then
   if confirm "Remove the NVIDIA hardware video decode Chromium flags ($CONFIG_DIR/chromium-flags.conf)?"; then
     unlink_ours "$REPO/config/chromium/chromium-flags.conf" "$CONFIG_DIR/chromium-flags.conf"

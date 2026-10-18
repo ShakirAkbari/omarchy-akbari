@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- `install.sh` / `uninstall.sh` (personal-only): `shakir.indicators` bar
+  widget, a fork of Omarchy's built-in indicators widget whose Dictation
+  icon draws a live mic-level waveform while recording (and a sweep while
+  transcribing) instead of a static icon. Split out as its own repo,
+  [omarchy-akbari-waveform-dictation-indicator](https://github.com/ShakirAkbari/omarchy-akbari-waveform-dictation-indicator),
+  since it's generally useful to any voxtype user, not personal/machine-
+  specific like the other `shakir.*` widgets — `install.sh` clones it into
+  `~/Projects/` and runs its own `install.sh`, same pattern as
+  `hypr-goldenspiral`. Swapped in for `omarchy.indicators` in
+  `shell.json`'s bar layout.
 - `install.sh` / `uninstall.sh` (step 15, personal-only): `shakir.weather`
   bar widget, a fork of Omarchy's built-in weather widget that shows the
   current temperature next to the condition icon instead of the icon alone.

@@ -733,6 +733,32 @@ if [ "$PERSONAL" -eq 1 ]; then
     say "skipped shakir.spotify bar widget"
   fi
 
+  # shakir.indicators: split out as its own repo (omarchy-akbari-waveform-
+  # dictation-indicator) since it's generally useful to any voxtype user,
+  # not personal/machine-specific -- unlike the other shakir.* widgets above.
+  # Still offered here, -p only, for convenience on my own machines.
+  say "shakir.indicators bar widget: a fork of Omarchy's built-in"
+  say "  indicators widget whose Dictation icon draws a live mic-level"
+  say "  waveform while recording (and a sweep while transcribing) instead"
+  say "  of a static icon. Clones github.com/ShakirAkbari/"
+  say "  omarchy-akbari-waveform-dictation-indicator into $PROJECTS_DIR/ and"
+  say "  runs its own install.sh, which swaps it in for omarchy.indicators"
+  say "  in $CONFIG_DIR/omarchy/shell.json's bar layout."
+  if confirm "Install the shakir.indicators bar widget?"; then
+    INDICATORS_DIR="$PROJECTS_DIR/omarchy-akbari-waveform-dictation-indicator"
+    mkdir -p "$PROJECTS_DIR"
+    if [ -d "$INDICATORS_DIR/.git" ]; then
+      say "updating omarchy-akbari-waveform-dictation-indicator"
+      git -C "$INDICATORS_DIR" pull --ff-only
+    else
+      say "cloning omarchy-akbari-waveform-dictation-indicator"
+      git clone https://github.com/ShakirAkbari/omarchy-akbari-waveform-dictation-indicator.git "$INDICATORS_DIR"
+    fi
+    sh "$INDICATORS_DIR/install.sh"
+  else
+    say "skipped shakir.indicators bar widget"
+  fi
+
   say "Personal packages (gaming, VMs, NVIDIA, work apps): asked one by one,"
   say "  already-installed ones are skipped."
   if [ -f "$REPO/packages-personal.txt" ] && confirm "Go through the personal package list?"; then
